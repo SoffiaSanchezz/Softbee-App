@@ -47,7 +47,8 @@ class _ColmenasManagementScreenState
     final query = _searchController.text.toLowerCase();
     setState(() {
       filteredBeehives = beehiveState.beehives.where((beehive) {
-        return beehive.beehiveNumber.toString().contains(query) ||
+        final hiveNum = beehive.beehiveNumber?.toString() ?? '';
+        return hiveNum.contains(query) ||
             (beehive.observations?.toLowerCase().contains(query) ?? false);
       }).toList();
     });
@@ -241,7 +242,7 @@ class _ColmenasManagementScreenState
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
-                      widget.apiaryName,
+                      'Apiario: ${widget.apiaryName}',
                       style: GoogleFonts.poppins(
                         fontSize: isDesktop ? 28 : (isTablet ? 26 : 24),
                         fontWeight: FontWeight.bold,
@@ -250,7 +251,7 @@ class _ColmenasManagementScreenState
                       textAlign: TextAlign.center,
                     ),
                     Text(
-                      'Colmenas en ${widget.apiaryName}',
+                      'Gestión de colmenas',
                       style: GoogleFonts.poppins(
                         fontSize: isDesktop ? 16 : 14,
                         color: Colors.white.withOpacity(0.8),
@@ -466,31 +467,60 @@ class _ColmenasManagementScreenState
   Widget _buildColmenasSection(bool isDesktop, bool isTablet) {
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildSectionTitle(
-              'Colmenas de ${widget.apiaryName}',
-              Icons.hive_outlined,
-              isDesktop,
-            ),
-            ElevatedButton.icon(
-              onPressed: () => _showColmenaDialog(),
-              icon: const Icon(Icons.add),
-              label: Text(
-                'Nueva Colmena',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        if (isDesktop)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildSectionTitle(
+                'Colmenas de ${widget.apiaryName}',
+                Icons.hive_outlined,
+                isDesktop,
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[700],
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              ElevatedButton.icon(
+                onPressed: () => _showColmenaDialog(),
+                icon: const Icon(Icons.add),
+                label: Text(
+                  'Nueva Colmena',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          )
+        else // For mobile/tablet
+          Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.center, // Center the items in column
+            children: [
+              _buildSectionTitle(
+                'Colmenas de ${widget.apiaryName}',
+                Icons.hive_outlined,
+                isDesktop,
+              ),
+              SizedBox(height: 16), // Add some space between title and button
+              ElevatedButton.icon(
+                onPressed: () => _showColmenaDialog(),
+                icon: const Icon(Icons.add),
+                label: Text(
+                  'Nueva Colmena',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
         SizedBox(height: isDesktop ? 16 : 12),
         _buildColmenasList(isDesktop, isTablet),
       ],
@@ -644,18 +674,11 @@ class _ColmenasManagementScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Colmena #${beehive.beehiveNumber}',
+                          'Colmena #${beehive.beehiveNumber ?? 'N/A'}',
                           style: GoogleFonts.poppins(
                             fontSize: isDesktop ? 18 : 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
-                          ),
-                        ),
-                        Text(
-                          widget.apiaryName,
-                          style: GoogleFonts.poppins(
-                            fontSize: isDesktop ? 14 : 12,
-                            color: Colors.black54,
                           ),
                         ),
                       ],
@@ -731,8 +754,8 @@ class _ColmenasManagementScreenState
               _buildInfoRow(
                 Icons.trending_up_outlined,
                 'Nivel de Actividad:',
-                beehive.activityLevel,
-                iconColor: _getActivityColor(beehive.activityLevel),
+                beehive.activityLevel ?? 'N/A',
+                iconColor: _getActivityColor(beehive.activityLevel ?? ''),
                 isDesktop: isDesktop,
               ),
 
@@ -741,9 +764,11 @@ class _ColmenasManagementScreenState
               _buildInfoRow(
                 Icons.favorite_outline,
                 'Estado de Salud:',
-                beehive.healthStatus,
-                iconColor: _getHealthColor(beehive.healthStatus),
-                isHighlight: beehive.healthStatus != 'Ninguno',
+                beehive.healthStatus ?? 'N/A',
+                iconColor: _getHealthColor(beehive.healthStatus ?? ''),
+                isHighlight:
+                    beehive.healthStatus != null &&
+                    beehive.healthStatus != 'Ninguno',
                 isDesktop: isDesktop,
               ),
 
@@ -752,12 +777,24 @@ class _ColmenasManagementScreenState
               _buildInfoRow(
                 Icons.home_work_outlined,
                 'Cámara de Producción:',
-                beehive.hasProductionChamber,
+                beehive.hasProductionChamber ?? 'N/A',
                 iconColor: beehive.hasProductionChamber == 'Si'
                     ? Colors.green[700]!
                     : Colors.grey[600]!,
                 isDesktop: isDesktop,
               ),
+
+              if (beehive.observations != null &&
+                  beehive.observations!.isNotEmpty) ...[
+                Divider(height: isDesktop ? 24 : 16),
+                _buildInfoRow(
+                  Icons.notes_rounded,
+                  'Observaciones:',
+                  beehive.observations!,
+                  iconColor: Colors.blueGrey[600]!,
+                  isDesktop: isDesktop,
+                ),
+              ],
 
               if (isDesktop) ...[
                 const Divider(height: 24),
@@ -778,9 +815,12 @@ class _ColmenasManagementScreenState
                           CircularPercentIndicator(
                             radius: 30,
                             lineWidth: 6,
-                            percent: (beehive.foodFrames / 10).clamp(0.0, 1.0),
+                            percent: ((beehive.foodFrames ?? 0) / 10).clamp(
+                              0.0,
+                              1.0,
+                            ),
                             center: Text(
-                              beehive.foodFrames.toString(),
+                              (beehive.foodFrames ?? 0).toString(),
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -811,9 +851,12 @@ class _ColmenasManagementScreenState
                           CircularPercentIndicator(
                             radius: 30,
                             lineWidth: 6,
-                            percent: (beehive.broodFrames / 10).clamp(0.0, 1.0),
+                            percent: ((beehive.broodFrames ?? 0) / 10).clamp(
+                              0.0,
+                              1.0,
+                            ),
                             center: Text(
-                              beehive.broodFrames.toString(),
+                              (beehive.broodFrames ?? 0).toString(),
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -973,39 +1016,43 @@ class _ColmenasManagementScreenState
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Detalles de la Colmena #${beehive.beehiveNumber}'),
+          title: Text(
+            'Detalles de la Colmena #${beehive.beehiveNumber ?? 'N/A'}',
+          ),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDetailRow('Actividad', beehive.activityLevel),
-                _buildDetailRow('Población', beehive.beePopulation),
+                _buildDetailRow('Actividad', beehive.activityLevel ?? 'N/A'),
+                _buildDetailRow('Población', beehive.beePopulation ?? 'N/A'),
                 _buildDetailRow(
                   'Cuadros de Alimento',
-                  beehive.foodFrames.toString(),
+                  (beehive.foodFrames ?? 0).toString(),
                 ),
                 _buildDetailRow(
                   'Cuadros de Cría',
-                  beehive.broodFrames.toString(),
+                  (beehive.broodFrames ?? 0).toString(),
                 ),
-                _buildDetailRow('Estado', beehive.hiveStatus),
-                _buildDetailRow('Salud', beehive.healthStatus),
+                _buildDetailRow('Estado', beehive.hiveStatus ?? 'N/A'),
+                _buildDetailRow('Salud', beehive.healthStatus ?? 'N/A'),
                 _buildDetailRow(
                   'Cámara de Producción',
-                  beehive.hasProductionChamber,
+                  beehive.hasProductionChamber ?? 'N/A',
                 ),
                 if (beehive.observations != null &&
                     beehive.observations!.isNotEmpty)
                   _buildDetailRow('Observaciones', beehive.observations!),
-                _buildDetailRow(
-                  'Creada',
-                  beehive.createdAt.toLocal().toString().substring(0, 16),
-                ),
-                _buildDetailRow(
-                  'Actualizada',
-                  beehive.updatedAt.toLocal().toString().substring(0, 16),
-                ),
+                if (beehive.createdAt != null)
+                  _buildDetailRow(
+                    'Creada',
+                    beehive.createdAt!.toLocal().toString().substring(0, 16),
+                  ),
+                if (beehive.updatedAt != null)
+                  _buildDetailRow(
+                    'Actualizada',
+                    beehive.updatedAt!.toLocal().toString().substring(0, 16),
+                  ),
               ],
             ),
           ),

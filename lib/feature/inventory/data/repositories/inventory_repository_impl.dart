@@ -93,7 +93,9 @@ class InventoryRepositoryImpl implements InventoryRepository {
   }
 
   @override
-  Future<Either<Failure, InventoryItem?>> getInventoryItem(String itemId) async {
+  Future<Either<Failure, InventoryItem?>> getInventoryItem(
+    String itemId,
+  ) async {
     try {
       final result = await remoteDataSource.getInventoryItem(itemId);
       return Right(result);
@@ -127,7 +129,8 @@ class InventoryRepositoryImpl implements InventoryRepository {
     try {
       final result = await remoteDataSource.getInventorySummary(
         apiaryId: apiaryId,
-      );      return Right(result);
+      );
+      return Right(result);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

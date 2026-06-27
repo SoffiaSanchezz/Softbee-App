@@ -5,7 +5,7 @@
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "🐝 SOFT-BEE es un sistema de información diseñado para la gestión y monitoreo de colmenas, permitiendo registrar datos de producción, salud, inventarios e inspecciones, con el fin de optimizar la administración apícola y mejorar la sostenibilidad y productividad del apiario. 🍯",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

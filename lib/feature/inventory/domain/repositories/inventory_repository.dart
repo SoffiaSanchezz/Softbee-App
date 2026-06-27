@@ -11,7 +11,10 @@ abstract class InventoryRepository {
   );
   Future<Either<Failure, void>> updateInventoryItem(InventoryItem item);
   Future<Either<Failure, void>> deleteInventoryItem(String itemId);
-  Future<Either<Failure, void>> adjustInventoryQuantity(String itemId, int amount);
+  Future<Either<Failure, void>> adjustInventoryQuantity(
+    String itemId,
+    int amount,
+  );
   Future<Either<Failure, List<InventoryItem>>> searchInventoryItems(
     String query, {
     required String apiaryId,

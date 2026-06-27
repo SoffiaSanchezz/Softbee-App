@@ -43,10 +43,12 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
   }
 
   @override
-  Future<List<InventoryItem>> getInventoryItems({required String apiaryId}) async {
+  Future<List<InventoryItem>> getInventoryItems({
+    required String apiaryId,
+  }) async {
     try {
       final response = await _httpClient.get(
-        '/apiaries/$apiaryId/inventory',
+        '/api/v1/inventory/$apiaryId',
         options: await _getAuthHeaders(),
       );
       if (response.statusCode == 200) {
@@ -88,7 +90,7 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
   Future<void> updateInventoryItem(InventoryItem item) async {
     try {
       final response = await _httpClient.put(
-        '/inventory/${item.id}',
+        '/api/v1/inventory/${item.id}',
         data: item.toUpdateJson(),
         options: await _getAuthHeaders(),
       );
@@ -106,10 +108,10 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
   Future<void> deleteInventoryItem(String itemId) async {
     try {
       final response = await _httpClient.delete(
-        '/inventory/$itemId',
+        '/api/v1/inventory/$itemId',
         options: await _getAuthHeaders(),
       );
-      if (response.statusCode != 200) {
+      if (response.statusCode != 200 && response.statusCode != 204) {
         throw ServerFailure('Failed to delete item: ${response.statusCode}');
       }
     } on DioException catch (e) {
@@ -123,8 +125,8 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
   Future<void> adjustInventoryQuantity(String itemId, int amount) async {
     try {
       final response = await _httpClient.put(
-        '/inventory/$itemId/adjust', // Use itemId parameter
-        data: {'amount': amount},
+        '/api/v1/inventory/$itemId/adjust',
+        data: {'adjustment_amount': amount},
         options: await _getAuthHeaders(),
       );
       if (response.statusCode != 200) {
@@ -163,13 +165,20 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
     } catch (e) {
       throw ServerFailure('Unknown error: ${e.toString()}');
     }
+    // Backend doesn't have a search endpoint, we will filter locally in the controller
+    final allItems = await getInventoryItems(apiaryId: apiaryId);
+    return allItems
+        .where(
+          (item) => item.itemName.toLowerCase().contains(query.toLowerCase()),
+        )
+        .toList();
   }
 
   @override
   Future<InventoryItem?> getInventoryItem(String itemId) async {
     try {
       final response = await _httpClient.get(
-        '/inventory/$itemId',
+        '/api/v1/inventory/$itemId', // Note: backend get_inventories is by apiary_id, might need check
         options: await _getAuthHeaders(),
       );
       if (response.statusCode == 200) {
@@ -204,6 +213,7 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
     } catch (e) {
       throw ServerFailure('Unknown error: ${e.toString()}');
     }
+    await adjustInventoryQuantity(itemId, -quantity);
   }
 
   @override
@@ -249,6 +259,34 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
     } catch (e) {
       throw ServerFailure('Unknown error: ${e.toString()}');
     }
+    // Backend summary is global per user (/api/v1/inventory/summary/<user_id>)
+    // For specific apiary summary, we can calculate it from the items list to avoid 404
+    final items = await getInventoryItems(apiaryId: apiaryId);
+    int totalQuantity = 0;
+    int lowStockCount = 0;
+    for (var item in items) {
+      totalQuantity += item.quantity;
+      if (item.quantity <= item.minimumStock) lowStockCount++;
+    }
+
+    return {
+      'total_items': items.length,
+      'total_quantity': totalQuantity,
+      'low_stock_items': lowStockCount,
+      'in_stock_items': items.where((i) => i.quantity > 0).length,
+      'out_of_stock_items': items.where((i) => i.quantity <= 0).length,
+    };
+  }
+
+  @override
+  Future<List<InventoryItem>> getLowStockItems({
+    required String apiaryId,
+  }) async {
+    // Filter locally to avoid 404
+    final allItems = await getInventoryItems(apiaryId: apiaryId);
+    return allItems
+        .where((item) => item.quantity <= item.minimumStock)
+        .toList();
   }
 }
 

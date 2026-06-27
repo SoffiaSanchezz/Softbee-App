@@ -60,9 +60,10 @@ class ResponsiveLayout extends StatelessWidget {
 }
 
 class InventoryManagementPage extends ConsumerStatefulWidget {
-  final String apiaryId; // Changed from int to String
+  final String apiaryId;
 
-  const InventoryManagementPage({Key? key, required this.apiaryId}) : super(key: key);
+  const InventoryManagementPage({Key? key, required this.apiaryId})
+    : super(key: key);
 
   @override
   _InventoryManagementPageState createState() =>
@@ -76,30 +77,81 @@ class _InventoryManagementPageState
   final TextEditingController nombreController = TextEditingController();
   final TextEditingController cantidadController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
+  final TextEditingController descripcionController = TextEditingController();
 
   // Clave para validación del formulario
   final _formKeyAgregar = GlobalKey<FormState>();
 
   // Variables de estado local para el diálogo de agregar/editar
-  // These will be managed by the InventoryController, but the form state needs local management
-  // for the dialog.
-  String unidadSeleccionada = 'unidades';
+  String unidadSeleccionada = 'Unidades';
 
-  // Lista de unidades disponibles
+  // Lista de unidades disponibles en español (Colombia)
   final List<String> unidades = [
-    'unidades',
-    'láminas',
-    'pares',
-    'unit',
-    'pair',
-    'kg',
-    'liter',
-    'meter',
-    'box',
-    'gram',
-    'ml',
-    'dozen',
-  ].toSet().toList();
+    'Unidades',
+    'Láminas',
+    'Pares',
+    'Kilogramos',
+    'Litros',
+    'Metros',
+    'Cajas',
+    'Gramos',
+    'Mililitros',
+    'Docenas',
+  ];
+
+  // Función para normalizar unidades del backend al frontend
+  String _normalizarUnidad(String? unit) {
+    if (unit == null || unit.isEmpty) return 'Unidades';
+
+    final normalizedUnitLower = unit.toLowerCase().trim();
+
+    // 1. Check if the exact unit (case-sensitive) is already in our predefined list
+    if (unidades.contains(unit)) {
+      return unit;
+    }
+
+    // 2. Check if a case-insensitive version exists in our predefined list
+    for (String u in unidades) {
+      if (u.toLowerCase() == normalizedUnitLower) {
+        return u; // Return the canonical form from `unidades`
+      }
+    }
+
+    // 3. Check the mapping for common backend variations
+    final map = {
+      'unit': 'Unidades',
+      'units': 'Unidades',
+      'unidades': 'Unidades',
+      'unidad': 'Unidades',
+      'pair': 'Pares',
+      'pairs': 'Pares',
+      'pares': 'Pares',
+      'kg': 'Kilogramos',
+      'kilogramos': 'Kilogramos',
+      'liter': 'Litros',
+      'litros': 'Litros',
+      'meter': 'Metros',
+      'metros': 'Metros',
+      'box': 'Cajas',
+      'cajas': 'Cajas',
+      'gram': 'Gramos',
+      'gramos': 'Gramos',
+      'ml': 'Mililitros',
+      'mililitros': 'Mililitros',
+      'dozen': 'Docenas',
+      'docenas': 'Docenas',
+      'láminas': 'Láminas',
+      'laminas': 'Láminas',
+    };
+
+    final mappedValue = map[normalizedUnitLower];
+    if (mappedValue != null && unidades.contains(mappedValue)) {
+      return mappedValue;
+    }
+
+    // 4. Fallback to 'Unidades' if no match is found
+    return 'Unidades';
+  }
 
   // Controlador de animación
   late AnimationController _animationController;
@@ -112,7 +164,6 @@ class _InventoryManagementPageState
       duration: const Duration(milliseconds: 1000),
     );
     _animationController.forward();
-    // No need to call _loadInventoryItems here, as the controller does it
   }
 
   @override
@@ -120,6 +171,7 @@ class _InventoryManagementPageState
     nombreController.dispose();
     cantidadController.dispose();
     searchController.dispose();
+    descripcionController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -134,7 +186,6 @@ class _InventoryManagementPageState
     }
 
     try {
-      // Mostrar indicador de carga
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -147,20 +198,22 @@ class _InventoryManagementPageState
 
       InventoryItem itemToSave;
       if (state.isEditing && state.editingItem != null) {
-        // Editar insumo existente
         itemToSave = state.editingItem!.copyWith(
           itemName: nombreController.text.trim(),
           quantity: int.parse(cantidadController.text),
           unit: unidadSeleccionada,
+          description: descripcionController.text.trim(),
+          minimumStock: 0, // Por defecto 0 ya que se ocultó el campo
         );
       } else {
-        // Agregar nuevo insumo
         itemToSave = InventoryItem(
-          id: '', // Pass empty string for new items, backend will assign UUID
+          id: '',
           itemName: nombreController.text.trim(),
           quantity: int.parse(cantidadController.text),
           unit: unidadSeleccionada,
-          apiaryId: widget.apiaryId, // Use the apiaryId from the widget
+          apiaryId: widget.apiaryId,
+          description: descripcionController.text.trim(),
+          minimumStock: 0,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
@@ -171,17 +224,13 @@ class _InventoryManagementPageState
         apiaryId: widget.apiaryId,
       );
 
-      // Cerrar diálogo de carga
       if (mounted) Navigator.of(context).pop();
 
       if (errorMessage != null) {
-        // Show error message
         _showSnackBar(context, errorMessage, Colors.red, Icons.error);
       } else {
-        // Cerrar diálogo de formulario
         if (mounted) Navigator.of(context).pop();
 
-        // Mostrar mensaje de éxito
         _showSnackBar(
           context,
           state.isEditing
@@ -191,11 +240,9 @@ class _InventoryManagementPageState
           Icons.check_circle,
         );
 
-        // Limpiar formulario y reset editing state
         _limpiarFormulario(controller);
       }
     } catch (e) {
-      // Cerrar diálogo de carga si está abierto
       if (mounted) Navigator.of(context).pop();
       _showSnackBar(context, 'Error: ${e.toString()}', Colors.red, Icons.error);
     }
@@ -212,7 +259,7 @@ class _InventoryManagementPageState
         content: Row(
           children: [
             Icon(icon, color: Colors.white),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Expanded(child: Text(message, style: GoogleFonts.poppins())),
           ],
         ),
@@ -224,28 +271,30 @@ class _InventoryManagementPageState
     );
   }
 
-  // Método para limpiar el formulario y resetear el estado de edición del controlador
   void _limpiarFormulario(InventoryController controller) {
     nombreController.clear();
     cantidadController.clear();
+    descripcionController.clear();
     setState(() {
-      unidadSeleccionada = 'unit';
+      unidadSeleccionada = 'Unidades';
     });
-    controller.setEditingItem(null); // Reset editing state in controller
+    controller.setEditingItem(null);
   }
 
-  // Método para editar insumos
   void _editarInsumo(InventoryItem insumo, InventoryController controller) {
     nombreController.text = insumo.itemName;
     cantidadController.text = insumo.quantity.toString();
-    unidadSeleccionada = insumo.unit;
-    controller.setEditingItem(insumo); // Set editing item in controller
+    unidadSeleccionada = _normalizarUnidad(insumo.unit);
+    descripcionController.text = insumo.description ?? '';
+    controller.setEditingItem(insumo);
 
     _mostrarDialogoAgregar(controller);
   }
 
-  // Método para eliminar insumos
-  Future<void> _eliminarInsumo(String id, InventoryController controller) async { // Changed id to String
+  Future<void> _eliminarInsumo(
+    String id,
+    InventoryController controller,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -255,17 +304,17 @@ class _InventoryManagementPageState
           ),
           title: Row(
             children: [
-              Icon(Icons.warning, color: Colors.red),
-              SizedBox(width: 8),
+              const Icon(Icons.warning, color: Colors.red),
+              const SizedBox(width: 8),
               Text(
                 '¿Eliminar insumo?',
                 style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
               ),
             ],
           ),
-          content: Text(
+          content: const Text(
             'Esta acción no se puede deshacer. El insumo será eliminado permanentemente del inventario.',
-            style: GoogleFonts.poppins(),
+            style: TextStyle(fontFamily: 'Poppins'),
           ),
           actions: [
             TextButton(
@@ -296,12 +345,11 @@ class _InventoryManagementPageState
 
     if (confirmed == true) {
       try {
-        // Mostrar indicador de carga
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) =>
-              LoadingIndicatorWidget(message: 'Eliminando insumo...'),
+              const LoadingIndicatorWidget(message: 'Eliminando insumo...'),
         );
 
         final errorMessage = await controller.eliminarInsumo(
@@ -309,7 +357,6 @@ class _InventoryManagementPageState
           apiaryId: widget.apiaryId,
         );
 
-        // Cerrar diálogo de carga
         if (mounted) Navigator.of(context).pop();
 
         if (errorMessage != null) {
@@ -323,7 +370,6 @@ class _InventoryManagementPageState
           );
         }
       } catch (e) {
-        // Cerrar diálogo de carga
         if (mounted) Navigator.of(context).pop();
         _showSnackBar(
           context,
@@ -335,7 +381,6 @@ class _InventoryManagementPageState
     }
   }
 
-  // Método para mostrar diálogo de agregar/editar
   void _mostrarDialogoAgregar(InventoryController controller) {
     showDialog(
       context: context,
@@ -352,7 +397,7 @@ class _InventoryManagementPageState
                     controller.state.isEditing ? Icons.edit : Icons.add_circle,
                     color: Colors.amber,
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text(
                     controller.state.isEditing
                         ? 'Editar Insumo'
@@ -361,129 +406,129 @@ class _InventoryManagementPageState
                   ),
                 ],
               ),
-              content: Form(
-                key: _formKeyAgregar,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Completa los detalles del insumo para tu apiario.',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey[600],
+              content: SingleChildScrollView(
+                child: Form(
+                  key: _formKeyAgregar,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Completa los detalles del insumo para tu apiario.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 20),
-                    TextFormField(
-                      controller: nombreController,
-                      decoration: InputDecoration(
-                        labelText: 'Nombre del insumo',
-                        labelStyle: GoogleFonts.poppins(),
-                        hintText: 'Ej: Traje de apicultor',
-                        prefixIcon: Icon(
-                          Icons.inventory_2,
-                          color: Colors.amber,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.amber),
-                        ),
-                        errorStyle: GoogleFonts.poppins(color: Colors.red),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Por favor ingresa un nombre';
-                        }
-                        if (value.trim().length < 3) {
-                          return 'El nombre debe tener al menos 3 caracteres';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: TextFormField(
-                            controller: cantidadController,
-                            decoration: InputDecoration(
-                              labelText: 'Cantidad',
-                              labelStyle: GoogleFonts.poppins(),
-                              hintText: 'Ej: 5',
-                              prefixIcon: Icon(
-                                Icons.numbers,
-                                color: Colors.amber,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(color: Colors.amber),
-                              ),
-                              errorStyle: GoogleFonts.poppins(
-                                color: Colors.red,
-                              ),
-                            ),
-                            keyboardType: TextInputType.number,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Ingresa cantidad';
-                              }
-                              if (int.tryParse(value) == null) {
-                                return 'Número válido';
-                              }
-                              if (int.parse(value) < 0) {
-                                return 'Mayor a 0';
-                              }
-                              return null;
-                            },
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: nombreController,
+                        decoration: InputDecoration(
+                          labelText: 'Nombre del insumo',
+                          labelStyle: GoogleFonts.poppins(),
+                          hintText: 'Ej: Traje de apicultor',
+                          prefixIcon: const Icon(
+                            Icons.inventory_2,
+                            color: Colors.amber,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.amber),
                           ),
                         ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: DropdownButtonFormField<String>(
-                            value: unidadSeleccionada,
-                            decoration: InputDecoration(
-                              labelText: 'Unidad',
-                              labelStyle: GoogleFonts.poppins(),
-                              prefixIcon: Icon(
-                                Icons.straighten,
-                                color: Colors.amber,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(color: Colors.amber),
-                              ),
-                            ),
-                            items: unidades.map((String unidad) {
-                              return DropdownMenuItem<String>(
-                                value: unidad,
-                                child: Text(
-                                  unidad,
-                                  style: GoogleFonts.poppins(),
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              setDialogState(() {
-                                unidadSeleccionada = newValue!;
-                              });
-                            },
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Por favor ingresa un nombre';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: cantidadController,
+                        decoration: InputDecoration(
+                          labelText: 'Cantidad',
+                          labelStyle: GoogleFonts.poppins(),
+                          hintText: 'Ej: 5',
+                          prefixIcon: const Icon(
+                            Icons.numbers,
+                            color: Colors.amber,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.amber),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Ingresa cantidad';
+                          }
+                          if (int.tryParse(value) == null) {
+                            return 'Número válido';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: unidadSeleccionada,
+                        decoration: InputDecoration(
+                          labelText: 'Unidad de Medida',
+                          labelStyle: GoogleFonts.poppins(),
+                          prefixIcon: const Icon(
+                            Icons.straighten,
+                            color: Colors.amber,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.amber),
+                          ),
+                        ),
+                        items: unidades.map((String unidad) {
+                          return DropdownMenuItem<String>(
+                            value: unidad,
+                            child: Text(unidad, style: GoogleFonts.poppins()),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setDialogState(() {
+                            unidadSeleccionada = newValue!;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: descripcionController,
+                        decoration: InputDecoration(
+                          labelText: 'Descripción (Opcional)',
+                          labelStyle: GoogleFonts.poppins(),
+                          hintText: 'Ej: Insumos de protección',
+                          prefixIcon: const Icon(
+                            Icons.description,
+                            color: Colors.amber,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.amber),
+                          ),
+                        ),
+                        maxLines: 2,
+                      ),
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -519,7 +564,6 @@ class _InventoryManagementPageState
     );
   }
 
-  // Método para filtrar insumos
   List<InventoryItem> _getFilteredInsumos(List<InventoryItem> allItems) {
     if (searchController.text.isEmpty) {
       return allItems;
@@ -543,7 +587,7 @@ class _InventoryManagementPageState
     );
 
     if (inventoryState.isLoading) {
-      return Scaffold(
+      return const Scaffold(
         body: LoadingIndicatorWidget(message: 'Cargando inventario...'),
       );
     }
@@ -567,7 +611,6 @@ class _InventoryManagementPageState
     );
   }
 
-  // Layout para móviles (diseño actual)
   Widget _buildMobileLayout(
     InventoryState state,
     InventoryController controller,
@@ -586,7 +629,6 @@ class _InventoryManagementPageState
     );
   }
 
-  // Layout para tablets
   Widget _buildTabletLayout(
     InventoryState state,
     InventoryController controller,
@@ -602,10 +644,8 @@ class _InventoryManagementPageState
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Panel lateral con información
                   SizedBox(width: 280, child: _buildSidePanel(state)),
                   const SizedBox(width: 16),
-                  // Contenido principal
                   Expanded(
                     child: Column(
                       children: [
@@ -634,7 +674,6 @@ class _InventoryManagementPageState
     );
   }
 
-  // Layout para desktop
   Widget _buildDesktopLayout(
     InventoryState state,
     InventoryController controller,
@@ -650,10 +689,8 @@ class _InventoryManagementPageState
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Panel lateral expandido
                   SizedBox(width: 350, child: _buildSidePanel(state)),
                   const SizedBox(width: 24),
-                  // Contenido principal
                   Expanded(
                     child: Column(
                       children: [
@@ -674,7 +711,6 @@ class _InventoryManagementPageState
                     ),
                   ),
                   const SizedBox(width: 24),
-                  // Panel de estadísticas (solo desktop)
                   SizedBox(width: 300, child: _buildStatsPanel(state)),
                 ],
               ),
@@ -685,7 +721,6 @@ class _InventoryManagementPageState
     );
   }
 
-  // Header responsivo
   Widget _buildHeader(InventoryState state, ScreenType screenType) {
     final isDesktop = screenType == ScreenType.desktop;
     final isTablet = screenType == ScreenType.tablet;
@@ -724,11 +759,7 @@ class _InventoryManagementPageState
                   Text(
                     'Gestión de Inventario',
                     style: GoogleFonts.poppins(
-                      fontSize: isDesktop
-                          ? 32
-                          : isTablet
-                          ? 28
-                          : 22,
+                      fontSize: isDesktop ? 32 : (isTablet ? 28 : 22),
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -778,7 +809,6 @@ class _InventoryManagementPageState
     );
   }
 
-  // Sección de búsqueda y agregar
   Widget _buildSearchAndAddSection(
     InventoryState state,
     InventoryController controller,
@@ -811,23 +841,6 @@ class _InventoryManagementPageState
                 hintText: 'Buscar insumo...',
                 hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
                 prefixIcon: const Icon(Icons.search, color: Colors.amber),
-                suffixIcon: searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.grey),
-                        onPressed: () {
-                          // No setState needed, just clear and rebuild will happen
-                          searchController.clear();
-                          // Force a rebuild to update the filtered list
-                          ref
-                              .read(
-                                inventoryControllerProvider(
-                                  widget.apiaryId,
-                                ).notifier,
-                              )
-                              .loadInventoryItems(apiaryId: widget.apiaryId);
-                        },
-                      )
-                    : null,
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(
                   vertical: isDesktop ? 20 : 16,
@@ -836,11 +849,7 @@ class _InventoryManagementPageState
               ),
               style: GoogleFonts.poppins(fontSize: isDesktop ? 16 : 14),
               onChanged: (value) {
-                // Force a rebuild to update the filtered list
-                // This will re-evaluate _getFilteredInsumos in _buildListaInsumos
-                ref
-                    .read(inventoryControllerProvider(widget.apiaryId).notifier)
-                    .loadInventoryItems(apiaryId: widget.apiaryId);
+                setState(() {});
               },
             ),
           ),
@@ -863,12 +872,9 @@ class _InventoryManagementPageState
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                elevation: 2,
               ),
               onPressed: () {
-                _limpiarFormulario(
-                  controller,
-                ); // Clear form and reset editing state
+                _limpiarFormulario(controller);
                 _mostrarDialogoAgregar(controller);
               },
             ),
@@ -878,7 +884,6 @@ class _InventoryManagementPageState
     );
   }
 
-  // Panel lateral para tablet y desktop
   Widget _buildSidePanel(InventoryState state) {
     return Container(
       decoration: BoxDecoration(
@@ -921,13 +926,6 @@ class _InventoryManagementPageState
             ),
             const SizedBox(height: 12),
             _buildSummaryCard(
-              'Sin Stock',
-              '${_getSinStockCount(state)}', // Use a helper for out of stock count
-              Icons.error,
-              Colors.red,
-            ),
-            const SizedBox(height: 12),
-            _buildSummaryCard(
               'Stock Total',
               '${state.inventorySummary['total_quantity'] ?? 0}',
               Icons.assessment,
@@ -939,7 +937,6 @@ class _InventoryManagementPageState
     );
   }
 
-  // Panel de estadísticas para desktop
   Widget _buildStatsPanel(InventoryState state) {
     return Container(
       decoration: BoxDecoration(
@@ -959,7 +956,7 @@ class _InventoryManagementPageState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Análisis de Inventario',
+              'Análisis',
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -968,13 +965,8 @@ class _InventoryManagementPageState
             ),
             const SizedBox(height: 20),
             _buildStatItem(
-              'Items disponibles',
+              'Items en stock',
               '${state.inventorySummary['in_stock_items'] ?? 0}',
-            ),
-            const SizedBox(height: 16),
-            _buildStatItem(
-              'Promedio de stock',
-              '${_getPromedioStock(state).toStringAsFixed(1)} unidades',
             ),
             const SizedBox(height: 16),
             _buildStatItem(
@@ -998,7 +990,6 @@ class _InventoryManagementPageState
     );
   }
 
-  // Lista de insumos responsiva
   Widget _buildListaInsumos(
     InventoryState state,
     InventoryController controller,
@@ -1006,13 +997,11 @@ class _InventoryManagementPageState
   ) {
     final insumosFiltrados = _getFilteredInsumos(state.inventoryItems);
     final isDesktop = screenType == ScreenType.desktop;
-    final isTablet = screenType == ScreenType.tablet;
 
     if (insumosFiltrados.isEmpty) {
       return _buildEmptyState(state, controller);
     }
 
-    // Para desktop, usar grid de 2 columnas
     if (isDesktop) {
       return GridView.builder(
         padding: EdgeInsets.zero,
@@ -1034,11 +1023,7 @@ class _InventoryManagementPageState
       );
     }
 
-    // Para tablet y móvil, usar lista
     return ListView.builder(
-      padding: EdgeInsets.symmetric(
-        horizontal: (isDesktop || isTablet) ? 0 : 16,
-      ),
       itemCount: insumosFiltrados.length,
       itemBuilder: (context, index) {
         return _buildInsumoCard(
@@ -1051,7 +1036,6 @@ class _InventoryManagementPageState
     );
   }
 
-  // Card de insumo responsivo
   Widget _buildInsumoCard(
     InventoryItem insumo,
     int index,
@@ -1059,9 +1043,6 @@ class _InventoryManagementPageState
     InventoryController controller,
   ) {
     final isDesktop = screenType == ScreenType.desktop;
-    final isTablet = screenType == ScreenType.tablet;
-    final isMobile = screenType == ScreenType.mobile;
-
     final cantidad = insumo.quantity;
     final unidad = insumo.unit;
     final nombre = insumo.itemName;
@@ -1100,13 +1081,15 @@ class _InventoryManagementPageState
 
     return Card(
           margin: cardMargin,
+    final bool cantidadBaja = cantidad < 4;
+
+    return Card(
+          margin: const EdgeInsets.only(bottom: 12),
           elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: cantidadBaja
-                  ? Colors.red[100] ?? Colors.red.shade100
-                  : Colors.amber[100] ?? Colors.amber.shade100,
+              color: cantidadBaja ? Colors.red.shade100 : Colors.amber.shade100,
             ),
           ),
           child: Container(
@@ -1119,12 +1102,14 @@ class _InventoryManagementPageState
                         Colors.red[25] ?? Colors.red.shade100,
                       ]
                     : [Colors.amber[50] ?? Colors.amber.shade50, Colors.white],
+                    ? [Colors.red.shade50, Colors.white]
+                    : [Colors.amber.shade50, Colors.white],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
             ),
             child: Padding(
-              padding: cardPadding,
+              padding: EdgeInsets.all(isDesktop ? 24 : 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1142,14 +1127,17 @@ class _InventoryManagementPageState
                           color: cantidadBaja
                               ? Colors.red[100] ?? Colors.red.shade100
                               : Colors.amber[100] ?? Colors.amber.shade100,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: cantidadBaja
+                              ? Colors.red[100]
+                              : Colors.amber[100],
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           Icons.inventory_2,
-                          color: cantidadBaja
-                              ? Colors.red[700] ?? Colors.red
-                              : Colors.amber[700] ?? Colors.amber,
-                          size: iconSize.toDouble(),
+                          color: cantidadBaja ? Colors.red : Colors.amber[700],
+                          size: isDesktop ? 26 : 20,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1188,6 +1176,17 @@ class _InventoryManagementPageState
                                   ),
                                 ),
                               ],
+                                fontSize: isDesktop ? 18 : 16,
+                              ),
+                            ),
+                            Text(
+                              'Stock: $cantidad $unidad',
+                              style: GoogleFonts.poppins(
+                                color: cantidadBaja
+                                    ? Colors.red
+                                    : Colors.grey[600],
+                                fontSize: isDesktop ? 14 : 12,
+                              ),
                             ),
                           ],
                         ),
@@ -1337,6 +1336,34 @@ class _InventoryManagementPageState
                             ),
                           ],
                         ),
+                        const Icon(Icons.warning, color: Colors.red, size: 20),
+                    ],
+                  ),
+                  const Spacer(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.edit, size: 16),
+                        label: const Text('Editar'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.amber[700],
+                          side: BorderSide(color: Colors.amber[300]!),
+                        ),
+                        onPressed: () => _editarInsumo(insumo, controller),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.delete, size: 16),
+                        label: const Text('Eliminar'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red[700],
+                          side: BorderSide(color: Colors.red[300]!),
+                        ),
+                        onPressed: () => _eliminarInsumo(id, controller),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -1356,6 +1383,10 @@ class _InventoryManagementPageState
   }
 
   // Widgets auxiliares
+        .fadeIn(delay: Duration(milliseconds: index * 100))
+        .slideX(begin: 0.2, end: 0);
+  }
+
   Widget _buildSummaryCard(
     String title,
     String value,
@@ -1394,6 +1425,25 @@ class _InventoryManagementPageState
                 ),
               ],
             ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1409,14 +1459,7 @@ class _InventoryManagementPageState
           style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
         ),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[800],
-          ),
-        ),
+        Text(value, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -1429,129 +1472,72 @@ class _InventoryManagementPageState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            searchController.text.isNotEmpty
-                ? Icons.search_off
-                : Icons.inventory_2_outlined,
-            size: 64,
-            color: Colors.amber[300] ?? Colors.amber,
-          ),
+          Icon(Icons.inventory_2_outlined, size: 64, color: Colors.amber[200]),
           const SizedBox(height: 16),
           Text(
-            searchController.text.isNotEmpty
-                ? 'No se encontraron insumos'
-                : 'No hay insumos registrados',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600] ?? Colors.grey,
-            ),
-          ),
-          Text(
-            searchController.text.isNotEmpty
-                ? 'Intenta con otro término de búsqueda'
-                : 'Agrega tu primer insumo al inventario',
-            style: GoogleFonts.poppins(color: Colors.grey[500] ?? Colors.grey),
+            'No hay insumos registrados',
+            style: GoogleFonts.poppins(fontSize: 18, color: Colors.grey[600]),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: searchController.text.isNotEmpty
-                ? () => controller.loadInventoryItems(apiaryId: widget.apiaryId)
-                : () {
-                    _limpiarFormulario(controller);
-                    _mostrarDialogoAgregar(controller);
-                  },
-            icon: Icon(
-              searchController.text.isNotEmpty ? Icons.refresh : Icons.add,
-            ),
-            label: Text(
-              searchController.text.isNotEmpty ? 'Recargar' : 'Agregar Insumo',
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 600.ms);
-  }
-
-  List<Widget> _buildAlertas(InventoryState state) {
-    List<Widget> alertas = [];
-
-    final sinStockCount = _getSinStockCount(state);
-    if (sinStockCount > 0) {
-      alertas.add(
-        _buildAlerta(
-          '$sinStockCount productos sin stock',
-          Icons.error,
-          Colors.red,
-        ),
-      );
-    }
-
-    if (state.lowStockItems.isNotEmpty) {
-      final lowStockCount = state.lowStockItems.length;
-      alertas.add(
-        _buildAlerta(
-          '$lowStockCount productos con stock bajo',
-          Icons.warning,
-          Colors.orange,
-        ),
-      );
-    }
-
-    if (alertas.isEmpty) {
-      alertas.add(
-        _buildAlerta(
-          'Inventario en buen estado',
-          Icons.check_circle,
-          Colors.green,
-        ),
-      );
-    }
-
-    return alertas;
-  }
-
-  Widget _buildAlerta(String mensaje, IconData icon, Color color) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              mensaje,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: color,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            onPressed: () => _mostrarDialogoAgregar(controller),
+            icon: const Icon(Icons.add),
+            label: const Text('Agregar Insumo'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
           ),
         ],
       ),
     );
   }
 
-  // Métodos auxiliares para estadísticas
-  int _getSinStockCount(InventoryState state) {
-    return (state.inventorySummary['out_of_stock_items'] as num?)?.toInt() ?? 0;
-  }
-
-  double _getPromedioStock(InventoryState state) {
-    final totalQuantity =
-        (state.inventorySummary['total_quantity'] as num?) ?? 0;
-    final totalItems = (state.inventorySummary['total_items'] as num?) ?? 0;
-    return totalItems > 0 ? totalQuantity / totalItems : 0.0;
+  List<Widget> _buildAlertas(InventoryState state) {
+    if (state.lowStockItems.isEmpty) {
+      return [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                'Todo en orden',
+                style: GoogleFonts.poppins(fontSize: 12, color: Colors.green),
+              ),
+            ],
+          ),
+        ),
+      ];
+    }
+    return state.lowStockItems
+        .map(
+          (item) => Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warning, color: Colors.orange, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Stock bajo: ${item.itemName}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        )
+        .toList();
   }
 }

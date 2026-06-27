@@ -39,13 +39,13 @@ class BeehiveRepositoryImpl implements BeehiveRepository {
   Future<Either<Failure, Beehive>> createBeehive(
     String apiaryId,
     int beehiveNumber,
-    String activityLevel,
-    String beePopulation,
-    int foodFrames,
-    int broodFrames,
-    String hiveStatus,
-    String healthStatus,
-    String hasProductionChamber,
+    String? activityLevel,
+    String? beePopulation,
+    int? foodFrames,
+    int? broodFrames,
+    String? hiveStatus,
+    String? healthStatus,
+    String? hasProductionChamber,
     String? observations,
   ) async {
     try {

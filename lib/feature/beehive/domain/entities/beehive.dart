@@ -3,39 +3,39 @@ import 'package:equatable/equatable.dart';
 class Beehive extends Equatable {
   final String id;
   final String apiaryId;
-  final int beehiveNumber;
-  final String activityLevel;
-  final String beePopulation;
-  final int foodFrames;
-  final int broodFrames;
-  final String hiveStatus;
-  final String healthStatus;
-  final String hasProductionChamber;
+  final int? beehiveNumber;
+  final String? activityLevel;
+  final String? beePopulation;
+  final int? foodFrames;
+  final int? broodFrames;
+  final String? hiveStatus;
+  final String? healthStatus;
+  final String? hasProductionChamber;
   final String? observations;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const Beehive({
     required this.id,
     required this.apiaryId,
-    required this.beehiveNumber,
-    required this.activityLevel,
-    required this.beePopulation,
-    required this.foodFrames,
-    required this.broodFrames,
-    required this.hiveStatus,
-    required this.healthStatus,
-    required this.hasProductionChamber,
+    this.beehiveNumber,
+    this.activityLevel,
+    this.beePopulation,
+    this.foodFrames,
+    this.broodFrames,
+    this.hiveStatus,
+    this.healthStatus,
+    this.hasProductionChamber,
     this.observations,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory Beehive.fromJson(Map<String, dynamic> json) {
     return Beehive(
-      id: json['beehive_id'],
-      apiaryId: json['apiary_id'],
-      beehiveNumber: json['beehive_number'],
+      id: (json['id'] ?? json['beehive_id'] ?? '').toString(),
+      apiaryId: (json['apiary_id'] ?? '').toString(),
+      beehiveNumber: json['hive_number'] ?? json['beehive_number'],
       activityLevel: json['activity_level'],
       beePopulation: json['bee_population'],
       foodFrames: json['food_frames'],
@@ -44,16 +44,20 @@ class Beehive extends Equatable {
       healthStatus: json['health_status'],
       hasProductionChamber: json['has_production_chamber'],
       observations: json['observations'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'beehive_id': id,
+      'id': id,
       'apiary_id': apiaryId,
-      'beehive_number': beehiveNumber,
+      'hive_number': beehiveNumber,
       'activity_level': activityLevel,
       'bee_population': beePopulation,
       'food_frames': foodFrames,
@@ -62,8 +66,8 @@ class Beehive extends Equatable {
       'health_status': healthStatus,
       'has_production_chamber': hasProductionChamber,
       'observations': observations,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
     };
   }
 

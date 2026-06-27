@@ -7,25 +7,25 @@ import 'package:Softbee/feature/beehive/domain/repositories/beehive_repository.d
 class CreateBeehiveParams {
   final String apiaryId;
   final int beehiveNumber;
-  final String activityLevel;
-  final String beePopulation;
-  final int foodFrames;
-  final int broodFrames;
-  final String hiveStatus;
-  final String healthStatus;
-  final String hasProductionChamber;
+  final String? activityLevel;
+  final String? beePopulation;
+  final int? foodFrames;
+  final int? broodFrames;
+  final String? hiveStatus;
+  final String? healthStatus;
+  final String? hasProductionChamber;
   final String? observations;
 
   CreateBeehiveParams({
     required this.apiaryId,
     required this.beehiveNumber,
-    required this.activityLevel,
-    required this.beePopulation,
-    required this.foodFrames,
-    required this.broodFrames,
-    required this.hiveStatus,
-    required this.healthStatus,
-    required this.hasProductionChamber,
+    this.activityLevel,
+    this.beePopulation,
+    this.foodFrames,
+    this.broodFrames,
+    this.hiveStatus,
+    this.healthStatus,
+    this.hasProductionChamber,
     this.observations,
   });
 }

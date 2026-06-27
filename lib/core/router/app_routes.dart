@@ -11,6 +11,8 @@ abstract class AppRoutes {
   static const String apiaryDashboardRoute = '/apiary-dashboard/:apiaryId';
   static const String monitoringOverviewRoute = // Renamed
       '/apiary-dashboard/:apiaryId/monitoring';
+  static const String questionsManagementRoute =
+      '/apiary-dashboard/:apiaryId/monitoring/questions';
   static const String beehiveManagementRoute = // New route for beehives
       '/apiary-dashboard/:apiaryId/hives';
   static const String inventoryRoute = '/apiary-dashboard/:apiaryId/inventory';

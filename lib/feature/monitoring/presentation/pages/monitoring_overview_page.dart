@@ -431,17 +431,9 @@ class MonitoringOverviewPage extends StatelessWidget {
         backgroundColor: _cardPreguntas,
         accentColor: _iconPreguntas,
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Navegar a Preguntas (TODO)',
-                style: GoogleFonts.poppins(),
-              ),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+          context.goNamed(
+            AppRoutes.questionsManagementRoute,
+            pathParameters: {'apiaryId': apiaryId},
           );
         },
       ),

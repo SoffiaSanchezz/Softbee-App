@@ -4,6 +4,8 @@ class InventoryItem {
   final int quantity;
   final String unit;
   final String apiaryId;
+  final String? description;
+  final int minimumStock;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -13,17 +15,21 @@ class InventoryItem {
     required this.quantity,
     required this.unit,
     required this.apiaryId,
+    this.description,
+    this.minimumStock = 0,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
     return InventoryItem(
-      id: json['id']?.toString() ?? '', // Changed to String
+      id: json['id']?.toString() ?? '',
       itemName: json['name']?.toString() ?? '',
       quantity: json['quantity'] as int? ?? 0,
       unit: json['unit']?.toString() ?? 'unit',
       apiaryId: json['apiary_id']?.toString() ?? '',
+      description: json['description'],
+      minimumStock: json['minimum_stock'] as int? ?? 0,
       createdAt:
           DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
@@ -40,25 +46,42 @@ class InventoryItem {
       'quantity': quantity,
       'unit': unit,
       'apiary_id': apiaryId,
+      'description': description,
+      'minimum_stock': minimumStock,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
   }
 
   Map<String, dynamic> toCreateJson() {
-    return {'name': itemName, 'quantity': quantity, 'unit': unit, 'apiary_id': apiaryId};
+    return {
+      'apiary_id': apiaryId,
+      'name': itemName,
+      'quantity': quantity,
+      'unit': unit,
+      'description': description,
+      'minimum_stock': minimumStock,
+    };
   }
 
-Map<String, dynamic> toUpdateJson() {
-    return {'id': id, 'name': itemName, 'quantity': quantity, 'unit': unit, 'apiary_id': apiaryId}; // Added id for update
+  Map<String, dynamic> toUpdateJson() {
+    return {
+      'name': itemName,
+      'quantity': quantity,
+      'unit': unit,
+      'description': description,
+      'minimum_stock': minimumStock,
+    };
   }
 
   InventoryItem copyWith({
-    String? id, // Changed to String
+    String? id,
     String? itemName,
     int? quantity,
     String? unit,
     String? apiaryId,
+    String? description,
+    int? minimumStock,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -68,6 +91,8 @@ Map<String, dynamic> toUpdateJson() {
       quantity: quantity ?? this.quantity,
       unit: unit ?? this.unit,
       apiaryId: apiaryId ?? this.apiaryId,
+      description: description ?? this.description,
+      minimumStock: minimumStock ?? this.minimumStock,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

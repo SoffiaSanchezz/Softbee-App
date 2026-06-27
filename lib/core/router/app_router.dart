@@ -1,3 +1,4 @@
+import 'package:Softbee/feature/monitoring/presentation/pages/questions_management_page.dart';
 import 'package:Softbee/feature/beehive/presentation/pages/beehive_management_page.dart';
 import 'package:Softbee/core/widgets/menu_info_apiario.dart';
 import 'package:Softbee/feature/monitoring/presentation/pages/monitoring_overview_page.dart';
@@ -104,6 +105,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   ); // Pass apiaryName
                 },
               ),
+              GoRoute(
+                path: 'questions',
+                name: AppRoutes.questionsManagementRoute,
+                builder: (context, state) {
+                  final apiaryId = state.pathParameters['apiaryId']!;
+                  return QuestionsManagementScreen(apiaryId: apiaryId);
+                },
+              ),
+
               // Other monitoring sub-options (e.g., 'questions', 'maya') can be added here
             ],
           ),
@@ -111,7 +121,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'inventory',
             name: AppRoutes.inventoryRoute,
             builder: (context, state) {
-              final apiaryId = state.pathParameters['apiaryId'] as String; // Changed back to String
+              final apiaryId =
+                  state.pathParameters['apiaryId']
+                      as String; // Changed back to String
               return InventoryManagementPage(
                 apiaryId: apiaryId,
               ); // Use new page

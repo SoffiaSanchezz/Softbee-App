@@ -63,7 +63,13 @@ class AuthController extends StateNotifier<AuthState> {
     required this.getUserFromTokenUseCase,
     required this.registerUseCase,
     required this.createApiaryUseCase,
-  }) : super(const AuthState());
+  }) : super(const AuthState()) {
+    _init(); // Call _init to check auth status on startup
+  }
+
+  void _init() {
+    checkAuthStatus();
+  }
 
   Future<void> checkAuthStatus() async {
     state = state.copyWith(isAuthenticating: true);

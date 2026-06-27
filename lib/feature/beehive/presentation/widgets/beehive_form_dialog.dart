@@ -26,11 +26,11 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
   late TextEditingController _broodFramesController;
   late TextEditingController _observationsController;
 
-  late String _activityLevel;
-  late String _beePopulation;
-  late String _hiveStatus;
-  late String _healthStatus;
-  late String _hasProductionChamber;
+  String? _activityLevel;
+  String? _beePopulation;
+  String? _hiveStatus;
+  String? _healthStatus;
+  String? _hasProductionChamber;
 
   bool _isEditing = false;
 
@@ -43,30 +43,26 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
       text: _isEditing ? widget.beehiveToEdit!.beehiveNumber.toString() : '',
     );
     _foodFramesController = TextEditingController(
-      text: _isEditing ? widget.beehiveToEdit!.foodFrames.toString() : '0',
+      text: _isEditing
+          ? (widget.beehiveToEdit!.foodFrames?.toString() ?? '')
+          : '',
     );
     _broodFramesController = TextEditingController(
-      text: _isEditing ? widget.beehiveToEdit!.broodFrames.toString() : '0',
+      text: _isEditing
+          ? (widget.beehiveToEdit!.broodFrames?.toString() ?? '')
+          : '',
     );
     _observationsController = TextEditingController(
-      text: _isEditing ? widget.beehiveToEdit!.observations : '',
+      text: _isEditing ? (widget.beehiveToEdit!.observations ?? '') : '',
     );
 
-    _activityLevel = _isEditing
-        ? widget.beehiveToEdit!.activityLevel
-        : ActivityLevel.baja.value;
-    _beePopulation = _isEditing
-        ? widget.beehiveToEdit!.beePopulation
-        : BeePopulation.baja.value;
-    _hiveStatus = _isEditing
-        ? widget.beehiveToEdit!.hiveStatus
-        : HiveStatus.camaraDeCria.value;
-    _healthStatus = _isEditing
-        ? widget.beehiveToEdit!.healthStatus
-        : HealthStatus.ninguno.value;
+    _activityLevel = _isEditing ? widget.beehiveToEdit!.activityLevel : null;
+    _beePopulation = _isEditing ? widget.beehiveToEdit!.beePopulation : null;
+    _hiveStatus = _isEditing ? widget.beehiveToEdit!.hiveStatus : null;
+    _healthStatus = _isEditing ? widget.beehiveToEdit!.healthStatus : null;
     _hasProductionChamber = _isEditing
         ? widget.beehiveToEdit!.hasProductionChamber
-        : HasProductionChamber.no.value;
+        : null;
   }
 
   @override
@@ -87,8 +83,8 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
     final beehiveController = ref.read(beehiveControllerProvider.notifier);
 
     final int beehiveNumber = int.parse(_beehiveNumberController.text);
-    final int foodFrames = int.parse(_foodFramesController.text);
-    final int broodFrames = int.parse(_broodFramesController.text);
+    final int? foodFrames = int.tryParse(_foodFramesController.text);
+    final int? broodFrames = int.tryParse(_broodFramesController.text);
 
     if (_isEditing) {
       await beehiveController.updateBeehive(
@@ -188,15 +184,31 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
                   if (value == null || value.trim().isEmpty) {
                     return 'Por favor, introduce el número de colmena';
                   }
-                  if (int.tryParse(value) == null) {
+                  final number = int.tryParse(value);
+                  if (number == null) {
                     return 'Debe ser un número válido';
                   }
+
+                  // Validación de duplicados en el frontend
+                  final existingBeehives = ref
+                      .read(beehiveControllerProvider)
+                      .beehives;
+                  final isDuplicate = existingBeehives.any(
+                    (b) =>
+                        b.beehiveNumber == number &&
+                        b.id != widget.beehiveToEdit?.id,
+                  );
+
+                  if (isDuplicate) {
+                    return 'Ya existe una colmena con este número en el apiario';
+                  }
+
                   return null;
                 },
               ),
               const SizedBox(height: 15),
               _buildDropdownFormField(
-                label: 'Nivel de Actividad',
+                label: 'Nivel de Actividad (Opcional)',
                 value: _activityLevel,
                 items: ActivityLevel.values.map((e) => e.value).toList(),
                 onChanged: (value) {
@@ -208,7 +220,7 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
               ),
               const SizedBox(height: 15),
               _buildDropdownFormField(
-                label: 'Población de Abejas',
+                label: 'Población de Abejas (Opcional)',
                 value: _beePopulation,
                 items: BeePopulation.values.map((e) => e.value).toList(),
                 onChanged: (value) {
@@ -221,15 +233,14 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
               const SizedBox(height: 15),
               _buildTextFormField(
                 controller: _foodFramesController,
-                label: 'Cuadros de Alimento',
-                hint: 'Ej: 5',
+                label: 'Cuadros de Alimento (Opcional)',
+                hint: 'Ej: 5 (Opcional)',
                 icon: Icons.storage_rounded,
                 keyboardType: TextInputType.number,
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Por favor, introduce la cantidad';
-                  }
-                  if (int.tryParse(value) == null) {
+                  if (value != null &&
+                      value.trim().isNotEmpty &&
+                      int.tryParse(value) == null) {
                     return 'Debe ser un número válido';
                   }
                   return null;
@@ -238,15 +249,14 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
               const SizedBox(height: 15),
               _buildTextFormField(
                 controller: _broodFramesController,
-                label: 'Cuadros de Cría',
-                hint: 'Ej: 3',
+                label: 'Cuadros de Cría (Opcional)',
+                hint: 'Ej: 3 (Opcional)',
                 icon: Icons.storage_rounded,
                 keyboardType: TextInputType.number,
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Por favor, introduce la cantidad';
-                  }
-                  if (int.tryParse(value) == null) {
+                  if (value != null &&
+                      value.trim().isNotEmpty &&
+                      int.tryParse(value) == null) {
                     return 'Debe ser un número válido';
                   }
                   return null;
@@ -254,7 +264,7 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
               ),
               const SizedBox(height: 15),
               _buildDropdownFormField(
-                label: 'Estado de la Colmena',
+                label: 'Estado de la Colmena (Opcional)',
                 value: _hiveStatus,
                 items: HiveStatus.values.map((e) => e.value).toList(),
                 onChanged: (value) {
@@ -266,7 +276,7 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
               ),
               const SizedBox(height: 15),
               _buildDropdownFormField(
-                label: 'Estado de Salud',
+                label: 'Estado de Salud (Opcional)',
                 value: _healthStatus,
                 items: HealthStatus.values.map((e) => e.value).toList(),
                 onChanged: (value) {
@@ -278,7 +288,7 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
               ),
               const SizedBox(height: 15),
               _buildDropdownFormField(
-                label: 'Cámara de Producción',
+                label: 'Cámara de Producción (Opcional)',
                 value: _hasProductionChamber,
                 items: HasProductionChamber.values.map((e) => e.value).toList(),
                 onChanged: (value) {
@@ -291,8 +301,8 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
               const SizedBox(height: 15),
               _buildTextFormField(
                 controller: _observationsController,
-                label: 'Observaciones',
-                hint: 'Ej: La colmena se ve saludable y activa.',
+                label: 'Observaciones (Opcional)',
+                hint: 'Ej: La colmena se ve saludable. (Opcional)',
                 icon: Icons.notes_rounded,
                 maxLines: 3,
                 keyboardType: TextInputType.multiline,
@@ -388,29 +398,32 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
 
   Widget _buildDropdownFormField({
     required String label,
-    required String value,
+    required String? value,
     required List<String> items,
     required ValueChanged<String?> onChanged,
     required IconData icon,
   }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
+    return DropdownButtonFormField<String?>(
+      value: value,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
-      items: items.map<DropdownMenuItem<String>>((String item) {
-        return DropdownMenuItem<String>(value: item, child: Text(item));
-      }).toList(),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text(
+            'Seleccionar (Opcional)',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+        ...items.map<DropdownMenuItem<String?>>((String item) {
+          return DropdownMenuItem<String?>(value: item, child: Text(item));
+        }),
+      ],
       onChanged: onChanged,
-      validator: (val) {
-        if (val == null || val.isEmpty) {
-          return 'Por favor, selecciona una opción';
-        }
-        return null;
-      },
     );
   }
 }
