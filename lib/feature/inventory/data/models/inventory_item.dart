@@ -1,5 +1,5 @@
 class InventoryItem {
-  final String id;
+  final String id; // Changed from int to String
   final String itemName;
   final int quantity;
   final String unit;

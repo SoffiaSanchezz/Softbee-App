@@ -1048,6 +1048,39 @@ class _InventoryManagementPageState
     final nombre = insumo.itemName;
     final id = insumo.id;
 
+    final bool cantidadBaja = cantidad <= 1;
+
+    // Ajustes específicos para cada tamaño de pantalla
+    final cardMargin = isMobile
+        ? const EdgeInsets.only(bottom: 12)
+        : isTablet
+        ? const EdgeInsets.only(bottom: 10)
+        : EdgeInsets.zero;
+
+    final cardPadding = isDesktop
+        ? const EdgeInsets.all(24)
+        : isTablet
+        ? const EdgeInsets.all(12)
+        : const EdgeInsets.all(16);
+
+    final iconSize = isDesktop
+        ? 26
+        : isTablet
+        ? 18
+        : 20;
+    final titleFontSize = isDesktop
+        ? 18
+        : isTablet
+        ? 14
+        : 16;
+    final subtitleFontSize = isDesktop
+        ? 14
+        : isTablet
+        ? 11
+        : 12;
+
+    return Card(
+          margin: cardMargin,
     final bool cantidadBaja = cantidad < 4;
 
     return Card(
@@ -1064,6 +1097,11 @@ class _InventoryManagementPageState
               borderRadius: BorderRadius.circular(12),
               gradient: LinearGradient(
                 colors: cantidadBaja
+                    ? [
+                        Colors.red[50] ?? Colors.red.shade50,
+                        Colors.red[25] ?? Colors.red.shade100,
+                      ]
+                    : [Colors.amber[50] ?? Colors.amber.shade50, Colors.white],
                     ? [Colors.red.shade50, Colors.white]
                     : [Colors.amber.shade50, Colors.white],
                 begin: Alignment.topLeft,
@@ -1078,6 +1116,17 @@ class _InventoryManagementPageState
                   Row(
                     children: [
                       Container(
+                        padding: EdgeInsets.all(
+                          isDesktop
+                              ? 12
+                              : isTablet
+                              ? 6
+                              : 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cantidadBaja
+                              ? Colors.red[100] ?? Colors.red.shade100
+                              : Colors.amber[100] ?? Colors.amber.shade100,
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: cantidadBaja
@@ -1100,6 +1149,33 @@ class _InventoryManagementPageState
                               nombre,
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w600,
+                                fontSize: titleFontSize.toDouble(),
+                                color: cantidadBaja
+                                    ? Colors.red[800] ?? Colors.red
+                                    : Colors.grey[800] ?? Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(
+                                  'Stock: ',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: subtitleFontSize.toDouble(),
+                                    color: Colors.grey[600] ?? Colors.grey,
+                                  ),
+                                ),
+                                Text(
+                                  '$cantidad $unidad',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: subtitleFontSize.toDouble(),
+                                    fontWeight: FontWeight.w600,
+                                    color: cantidadBaja
+                                        ? Colors.red[700] ?? Colors.red
+                                        : Colors.amber[700] ?? Colors.amber,
+                                  ),
+                                ),
+                              ],
                                 fontSize: isDesktop ? 18 : 16,
                               ),
                             ),
@@ -1116,6 +1192,150 @@ class _InventoryManagementPageState
                         ),
                       ),
                       if (cantidadBaja)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'STOCK BAJO',
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  SizedBox(
+                    height: isDesktop
+                        ? 16
+                        : isTablet
+                        ? 10
+                        : 12,
+                  ),
+                  // Botones responsivos
+                  isDesktop
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.edit, size: 16),
+                              label: Text(
+                                'Editar',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor:
+                                    Colors.amber[700] ?? Colors.amber,
+                                side: BorderSide(
+                                  color: Colors.amber[300] ?? Colors.amber,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                              ),
+                              onPressed: () =>
+                                  _editarInsumo(insumo, controller),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.delete, size: 16),
+                              label: Text(
+                                'Eliminar',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red[700] ?? Colors.red,
+                                side: BorderSide(
+                                  color: Colors.red[300] ?? Colors.red,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                              ),
+                              onPressed: () => _eliminarInsumo(id, controller),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: Icon(
+                                  Icons.edit,
+                                  size: isTablet ? 14 : 16,
+                                ),
+                                label: Text(
+                                  'Editar',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: isTablet ? 12 : 14,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor:
+                                      Colors.amber[700] ?? Colors.amber,
+                                  side: BorderSide(
+                                    color: Colors.amber[300] ?? Colors.amber,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onPressed: () =>
+                                    _editarInsumo(insumo, controller),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: Icon(
+                                  Icons.delete,
+                                  size: isTablet ? 14 : 16,
+                                ),
+                                label: Text(
+                                  'Eliminar',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: isTablet ? 12 : 14,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor:
+                                      Colors.red[700] ?? Colors.red,
+                                  side: BorderSide(
+                                    color: Colors.red[300] ?? Colors.red,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onPressed: () =>
+                                    _eliminarInsumo(id, controller),
+                              ),
+                            ),
+                          ],
+                        ),
                         const Icon(Icons.warning, color: Colors.red, size: 20),
                     ],
                   ),
@@ -1150,6 +1370,19 @@ class _InventoryManagementPageState
           ),
         )
         .animate()
+        .fadeIn(
+          duration: 600.ms,
+          delay: Duration(milliseconds: index * 100),
+        )
+        .slideX(
+          begin: 0.2,
+          end: 0,
+          duration: 600.ms,
+          curve: Curves.easeOutQuad,
+        );
+  }
+
+  // Widgets auxiliares
         .fadeIn(delay: Duration(milliseconds: index * 100))
         .slideX(begin: 0.2, end: 0);
   }
@@ -1171,6 +1404,27 @@ class _InventoryManagementPageState
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

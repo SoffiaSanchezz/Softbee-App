@@ -70,7 +70,7 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
   Future<InventoryItem> createInventoryItem(InventoryItem item) async {
     try {
       final response = await _httpClient.post(
-        '/api/v1/inventory/',
+        '/apiaries/${item.apiaryId}/inventory',
         data: item.toCreateJson(),
         options: await _getAuthHeaders(),
       );
@@ -146,6 +146,25 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
     String query, {
     required String apiaryId,
   }) async {
+    try {
+      final response = await _httpClient.get(
+        '/apiaries/$apiaryId/inventory/search',
+        queryParameters: {'query': query},
+        options: await _getAuthHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = response.data;
+        return jsonList.map((json) => InventoryItem.fromJson(json)).toList();
+      } else {
+        throw ServerFailure(
+          'Failed to search inventory items: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      throw ServerFailure('Dio error: ${e.message}');
+    } catch (e) {
+      throw ServerFailure('Unknown error: ${e.toString()}');
+    }
     // Backend doesn't have a search endpoint, we will filter locally in the controller
     final allItems = await getInventoryItems(apiaryId: apiaryId);
     return allItems
@@ -184,6 +203,16 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
     required int quantity,
     required String person,
   }) async {
+    try {
+      // Assuming a separate endpoint for recording exit, if not, adjust quantity directly
+      // For now, it adjusts quantity and doesn't explicitly send 'person' to the backend
+      // as the original service didn't either.
+      await adjustInventoryQuantity(itemId, -quantity);
+    } on DioException catch (e) {
+      throw ServerFailure('Dio error: ${e.message}');
+    } catch (e) {
+      throw ServerFailure('Unknown error: ${e.toString()}');
+    }
     await adjustInventoryQuantity(itemId, -quantity);
   }
 
@@ -191,6 +220,45 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
   Future<Map<String, dynamic>> getInventorySummary({
     required String apiaryId,
   }) async {
+    try {
+      final response = await _httpClient.get(
+        '/apiaries/$apiaryId/inventory/summary',
+        options: await _getAuthHeaders(),
+      );
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw ServerFailure(
+          'Failed to get inventory summary: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      throw ServerFailure('Dio error: ${e.message}');
+    } catch (e) {
+      throw ServerFailure('Unknown error: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<List<InventoryItem>> getLowStockItems({required String apiaryId}) async {
+    try {
+      final response = await _httpClient.get(
+        '/apiaries/$apiaryId/inventory/low-stock',
+        options: await _getAuthHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = response.data;
+        return jsonList.map((json) => InventoryItem.fromJson(json)).toList();
+      } else {
+        throw ServerFailure(
+          'Failed to get low stock items: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      throw ServerFailure('Dio error: ${e.message}');
+    } catch (e) {
+      throw ServerFailure('Unknown error: ${e.toString()}');
+    }
     // Backend summary is global per user (/api/v1/inventory/summary/<user_id>)
     // For specific apiary summary, we can calculate it from the items list to avoid 404
     final items = await getInventoryItems(apiaryId: apiaryId);

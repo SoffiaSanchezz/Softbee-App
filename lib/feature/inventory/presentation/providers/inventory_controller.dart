@@ -21,6 +21,26 @@ class InventoryController extends StateNotifier<InventoryState> {
         isLoading: false,
       ),
       (items) {
+        summaryResult.fold(
+          (summaryFailure) => state = state.copyWith(
+            errorMessage: _mapFailureToMessage(summaryFailure),
+            isLoading: false,
+          ),
+          (summary) {
+            lowStockResult.fold(
+              (lowStockFailure) => state = state.copyWith(
+                errorMessage: _mapFailureToMessage(lowStockFailure),
+                isLoading: false,
+              ),
+              (lowStock) => state = state.copyWith(
+                inventoryItems: items,
+                inventorySummary: summary,
+                lowStockItems: lowStock,
+                isLoading: false,
+                errorMessage: null,
+              ),
+            );
+          },
         // Calculate summary and low stock locally to avoid 404s from non-existent endpoints
         int totalQuantity = 0;
         final lowStockItems = <InventoryItem>[];
