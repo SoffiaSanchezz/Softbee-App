@@ -182,6 +182,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 apiaryId: apiaryId,
                 apiaryName: apiaryName,
               );
+            },
+          ),
+          GoRoute(
             path: 'treatments',
             name: AppRoutes.treatmentsRoute,
             builder: (context, state) {

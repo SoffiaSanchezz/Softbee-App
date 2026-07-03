@@ -502,7 +502,7 @@ class _QuestionsManagementScreenState
 
   Widget _buildHeader(List<Apiary> apiarios, QuestionsState state) {
     final currentApiary = apiarios.firstWhere((a) => a.id == widget.apiaryId, 
-      orElse: () => Apiary(id: '', name: 'Cargando...', userId: '', treatments: false));
+      orElse: () => Apiary(id: '', name: 'Cargando...', userId: ''));
 
     return Container(
       padding: const EdgeInsets.all(16),

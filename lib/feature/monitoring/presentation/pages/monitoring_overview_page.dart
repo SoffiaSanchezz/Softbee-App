@@ -269,11 +269,15 @@ class MonitoringOverviewPage extends StatelessWidget {
   SliverGrid _buildGridCards(BuildContext context) {
     final items = _getMonitoringItems(context);
     return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      // Auto-fit: el nº de columnas se calcula según el ancho disponible
+      // (equivalente a grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))).
+      // Así las tarjetas ocupan mejor el ancho: 4 en una fila cuando caben,
+      // y bajan a 3 o 2 automáticamente en pantallas más angostas.
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 360,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        childAspectRatio: 1.1,
+        childAspectRatio: 1.0,
       ),
       delegate: SliverChildBuilderDelegate(
         (context, index) =>

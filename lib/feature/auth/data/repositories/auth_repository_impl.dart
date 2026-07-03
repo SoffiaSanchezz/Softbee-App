@@ -4,6 +4,7 @@ import 'package:either_dart/either.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../core/entities/user.dart';
+import '../../core/errors/auth_error.dart';
 import '../../core/repositories/auth_repository.dart';
 // import '../datasources/auth_local_datasource.dart';
 // import '../datasources/auth_remote_datasource.dart';
@@ -43,8 +44,13 @@ class AuthRepositoryImpl implements AuthRepository {
       final token = await remoteDataSource.login(email, password);
       await localDataSource.saveToken(token);
       return Right(token);
+    } on AuthException catch (e) {
+      // Propagar el mensaje específico ya interpretado por código de error.
+      return Left(AuthFailure(e.message));
     } catch (e) {
-      return const Left(ServerFailure('Error al iniciar sesión'));
+      return const Left(
+        AuthFailure('No se pudo iniciar sesión. Intenta nuevamente.'),
+      );
     }
   }
 
