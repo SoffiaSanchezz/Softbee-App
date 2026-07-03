@@ -537,22 +537,28 @@ class _ColmenasManagementScreenState
     }
 
     if (isDesktop) {
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.0,
-        ),
-        itemCount: filteredBeehives.length,
-        itemBuilder: (context, index) {
-          return _buildColmenaCard(
-            filteredBeehives[index],
-            index,
-            isDesktop,
-            isTablet,
+      // Se usa Wrap (en lugar de GridView con relación de aspecto fija) para
+      // que cada tarjeta ajuste su altura al contenido (height: auto) y no
+      // quede espacio vacío en la parte inferior. Se mantienen 2 columnas y
+      // el mismo espaciado; el diseño de la tarjeta no cambia.
+      const double spacing = 16.0;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final double itemWidth = (constraints.maxWidth - spacing) / 2;
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: List.generate(filteredBeehives.length, (index) {
+              return SizedBox(
+                width: itemWidth,
+                child: _buildColmenaCard(
+                  filteredBeehives[index],
+                  index,
+                  isDesktop,
+                  isTablet,
+                ),
+              );
+            }),
           );
         },
       );

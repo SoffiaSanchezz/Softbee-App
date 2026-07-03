@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:Softbee/core/utils/date_parser.dart';
 
 class ApiaryInsights extends Equatable {
   final int totalBeehives;
@@ -23,9 +24,7 @@ class ApiaryInsights extends Equatable {
       activeTreatments: json['active_treatments'] ?? 0,
       avgHealthScore: (json['avg_health_score'] as num?)?.toDouble() ?? 0.0,
       lowStockItems: json['low_stock_items'] ?? 0,
-      lastUpdated: json['last_updated'] != null 
-          ? DateTime.parse(json['last_updated']) 
-          : DateTime.now(),
+      lastUpdated: DateParser.parseBackendDateOr(json['last_updated']),
       healthHistory: historyJson.map((e) => HealthDataPoint.fromJson(e)).toList(),
     );
   }
@@ -42,7 +41,7 @@ class HealthDataPoint extends Equatable {
 
   factory HealthDataPoint.fromJson(Map<String, dynamic> json) {
     return HealthDataPoint(
-      date: DateTime.parse(json['date']),
+      date: DateParser.parseBackendDateOr(json['date']),
       score: (json['avg_score'] as num).toDouble(),
     );
   }

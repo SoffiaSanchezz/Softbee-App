@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:Softbee/core/utils/date_parser.dart';
 import 'hive_question.dart';
 
 class HiveAnswer extends Equatable {
@@ -27,9 +28,7 @@ class HiveAnswer extends Equatable {
       answer: json['answer']?.toString() ?? '',
       score: (json['score'] as num?)?.toInt() ?? 0,
       answeredBy: json['answered_by']?.toString(),
-      answeredAt: json['answered_at'] != null
-          ? DateTime.parse(json['answered_at'])
-          : null,
+      answeredAt: DateParser.parseBackendDate(json['answered_at']),
       hiveQuestion: json['hive_question'] != null 
           ? HiveQuestion.fromJson(json['hive_question']) 
           : null,
