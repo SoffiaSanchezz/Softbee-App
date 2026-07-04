@@ -5,6 +5,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../controllers/insights_controller.dart';
+import '../../../maya/presentation/report/maya_report.dart' show ReportStatus, ReportStatusX, Priority, PriorityX;
+import '../report/apiary_report_builder.dart';
 
 class ApiaryInsightsPage extends ConsumerStatefulWidget {
   final String apiaryId;
@@ -36,6 +38,14 @@ class _ApiaryInsightsPageState extends ConsumerState<ApiaryInsightsPage> {
     final bool isDesktop = size.width > 1200;
     final bool isTablet = size.width > 700 && size.width <= 1200;
 
+    // Construimos el reporte en lenguaje natural a partir de los datos reales
+    // (evitando variables técnicas, IDs o placeholders como $1).
+    final report = ApiaryReport.fromStats(
+      apiaryName: widget.apiaryName,
+      date: DateTime.now(),
+      stats: state.generalStats,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
       body: Center(
@@ -54,9 +64,11 @@ class _ApiaryInsightsPageState extends ConsumerState<ApiaryInsightsPage> {
                   ),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _buildAiHeroSection(state, isDesktop),
-                      const SizedBox(height: 30),
-                      _buildMetricsGrid(state.generalStats, size.width),
+                      _buildAiHeroSection(state, isDesktop, report),
+                      const SizedBox(height: 24),
+                      _buildMetricsGrid(state.generalStats, size.width, report.status),
+                      const SizedBox(height: 24),
+                      ..._buildReportSections(report),
                       const SizedBox(height: 30),
                       if (isDesktop)
                         Row(
@@ -127,13 +139,17 @@ class _ApiaryInsightsPageState extends ConsumerState<ApiaryInsightsPage> {
     );
   }
 
-  Widget _buildAiHeroSection(AdvancedInsightsState state, bool isDesktop) {
-    final ai = state.aiAnalysis;
-    final isLo = state.isAiLoading;
+  Widget _buildAiHeroSection(
+    AdvancedInsightsState state,
+    bool isDesktop,
+    ApiaryReport report,
+  ) {
+    final dateStr =
+        '${_two(report.date.day)}/${_two(report.date.month)}/${report.date.year} · ${_two(report.date.hour)}:${_two(report.date.minute)}';
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isDesktop ? 32 : 24),
+      padding: EdgeInsets.all(isDesktop ? 30 : 22),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF1A1A1A), Color(0xFF2D3436)],
@@ -164,68 +180,131 @@ class _ApiaryInsightsPageState extends ConsumerState<ApiaryInsightsPage> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  "Análisis Estratégico Maya",
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: isDesktop ? 22 : 18,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Análisis de Maya",
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: isDesktop ? 22 : 18,
+                      ),
+                    ),
+                    Text(
+                      "Apiario: ${report.apiaryName}",
+                      style: GoogleFonts.poppins(
+                        color: Colors.white.withOpacity(0.75),
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      dateStr,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (ai != null)
-                _buildStatusBadge(ai['status']),
+              _buildStatusBadgeDark(report.status),
             ],
           ),
-          const SizedBox(height: 20),
-          if (isLo)
-            const LinearProgressIndicator(backgroundColor: Colors.white10, color: Colors.amber)
-          else if (ai != null)
-            Text(
-              ai['response'],
-              style: GoogleFonts.poppins(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: isDesktop ? 16 : 15,
-                height: 1.6,
-              ),
-            )
-          else
-            Text(
-              "Cargando análisis inteligente...",
-              style: GoogleFonts.poppins(color: Colors.white54),
+          const SizedBox(height: 18),
+          Text(
+            'Estado general',
+            style: GoogleFonts.poppins(
+              color: Colors.amber,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
             ),
+          ),
+          const SizedBox(height: 10),
+          // Razones del estado general en lenguaje natural (máx. 4 líneas).
+          ...report.summaryReasons.map(
+            (reason) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    margin: const EdgeInsets.only(top: 7),
+                    decoration: BoxDecoration(
+                      color: report.status.color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      reason,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: isDesktop ? 14 : 13,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     ).animate().fadeIn().slideY(begin: 0.1);
   }
 
-  Widget _buildStatusBadge(String status) {
-    final color = status == 'saludable' ? Colors.green : (status == 'alerta' ? Colors.red : Colors.amber);
+  /// Badge de estado (versión para fondo oscuro) usando el estado del parser.
+  Widget _buildStatusBadgeDark(ReportStatus status) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: status.color.withOpacity(0.22),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: status.color.withOpacity(0.6)),
       ),
-      child: Text(
-        status.toUpperCase(),
-        style: GoogleFonts.poppins(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(status.icon, size: 14, color: status.color),
+          const SizedBox(width: 6),
+          Text(
+            status.label.toUpperCase(),
+            style: GoogleFonts.poppins(
+              color: status.color,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMetricsGrid(Map<String, dynamic>? stats, double width) {
+  Widget _buildMetricsGrid(
+    Map<String, dynamic>? stats,
+    double width,
+    ReportStatus? status,
+  ) {
     int crossAxisCount = 2;
     double aspectRatio = 1.3;
 
     if (width > 1000) {
       crossAxisCount = 4;
-      aspectRatio = 1.5;
+      aspectRatio = 1.45;
     } else if (width > 600) {
       crossAxisCount = 3;
       aspectRatio = 1.4;
     }
+
+    // Salud como valor numérico para pintar barra de progreso.
+    final num healthNum = (stats?['avg_health_score'] as num?) ?? 0;
+    final double healthPct = (healthNum.toDouble() / 100).clamp(0.0, 1.0);
+
+    final risk = _riskFromStatus(status);
 
     return GridView.count(
       shrinkWrap: true,
@@ -235,20 +314,322 @@ class _ApiaryInsightsPageState extends ConsumerState<ApiaryInsightsPage> {
       mainAxisSpacing: 16,
       childAspectRatio: aspectRatio,
       children: [
-        _buildMetricCard("Salud Promedio", "${stats?['avg_health_score'] ?? 0}%", Icons.favorite_rounded, Colors.redAccent, "+2.4%"),
-        _buildMetricCard("Colmenas", "${stats?['total_beehives'] ?? 0}", Icons.hive_rounded, Colors.amber, "Estable"),
-        _buildMetricCard("Tratamientos", "${stats?['active_treatments'] ?? 0}", Icons.healing_rounded, Colors.blueAccent, "-15%"),
-        _buildMetricCard("Inventario", "${stats?['low_stock_items'] ?? 0}", Icons.inventory_2_rounded, Colors.orangeAccent, "Alerta"),
+        _buildMetricCard("Salud Promedio", "$healthNum%", Icons.favorite_rounded, Colors.redAccent, "Salud",
+            progress: healthPct),
+        _buildMetricCard("Colmenas", "${stats?['total_beehives'] ?? 0}", Icons.hive_rounded, Colors.amber, "Total"),
+        _buildMetricCard("Tratamientos", "${stats?['active_treatments'] ?? 0}", Icons.healing_rounded, Colors.blueAccent, "Activos"),
+        _buildMetricCard("Inventario", "${stats?['low_stock_items'] ?? 0}", Icons.inventory_2_rounded, Colors.orangeAccent, "Stock bajo"),
+        _buildMetricCard("Riesgo", risk.$1, Icons.shield_rounded, risk.$2, "General"),
       ],
     );
   }
 
-  Widget _buildMetricCard(String title, String val, IconData icon, Color color, String trend) {
+  /// Traduce el estado del informe a un nivel de riesgo (texto + color).
+  (String, Color) _riskFromStatus(ReportStatus? status) {
+    switch (status) {
+      case ReportStatus.critico:
+        return ('Alto', const Color(0xFFD32F2F));
+      case ReportStatus.advertencia:
+        return ('Medio', const Color(0xFFF57C00));
+      case ReportStatus.bueno:
+        return ('Bajo', const Color(0xFF66BB6A));
+      case ReportStatus.excelente:
+        return ('Muy bajo', const Color(0xFF2E7D32));
+      default:
+        return ('—', Colors.grey);
+    }
+  }
+
+  String _two(int n) => n < 10 ? '0$n' : '$n';
+
+  // ================= Secciones del reporte (lenguaje natural) =================
+
+  List<Widget> _buildReportSections(ApiaryReport report) {
+    if (!report.hasData) {
+      return [
+        _infoSection(
+          title: 'Sin datos suficientes',
+          icon: Icons.info_outline_rounded,
+          color: Colors.grey,
+          child: Text(
+            'No hay información suficiente para generar el análisis del apiario.',
+            style: GoogleFonts.poppins(fontSize: 13, height: 1.5, color: Colors.grey[700]),
+          ),
+        ),
+      ];
+    }
+
+    final widgets = <Widget>[];
+
+    // Qué funciona bien
+    if (report.positives.isNotEmpty) {
+      widgets.add(_bulletSection(
+        title: 'Qué funciona bien',
+        icon: Icons.thumb_up_rounded,
+        color: const Color(0xFF2E7D32),
+        background: const Color(0xFFF1F8E9),
+        bulletIcon: Icons.check_circle_rounded,
+        items: report.positives,
+      ));
+      widgets.add(const SizedBox(height: 20));
+    }
+
+    // Problemas detectados
+    if (report.problems.isNotEmpty) {
+      widgets.add(_bulletSection(
+        title: 'Problemas detectados',
+        icon: Icons.report_problem_rounded,
+        color: const Color(0xFFD32F2F),
+        background: const Color(0xFFFDECEA),
+        bulletIcon: Icons.error_outline_rounded,
+        items: report.problems,
+      ));
+      widgets.add(const SizedBox(height: 20));
+    }
+
+    // Qué hacer primero (acciones por prioridad)
+    if (report.actions.isNotEmpty) {
+      widgets.add(_actionsSection(report.actions));
+      widgets.add(const SizedBox(height: 20));
+    }
+
+    // Recomendación de Maya
+    widgets.add(_recommendationSection(report.mayaRecommendation));
+
+    return [
+      for (int i = 0; i < widgets.length; i++)
+        widgets[i].animate().fadeIn(delay: (80 * i).ms).slideY(begin: 0.06, end: 0),
+    ];
+  }
+
+  Widget _sectionShell({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required Widget child,
+    Color? background,
+  }) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: background ?? Colors.white,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withOpacity(0.18)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, size: 20, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF2D3436),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _infoSection({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required Widget child,
+  }) =>
+      _sectionShell(title: title, icon: icon, color: color, child: child);
+
+  Widget _bulletSection({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required Color background,
+    required IconData bulletIcon,
+    required List<String> items,
+  }) {
+    return _sectionShell(
+      title: title,
+      icon: icon,
+      color: color,
+      background: background,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int i = 0; i < items.length; i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: i == items.length - 1 ? 0 : 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(bulletIcon, size: 18, color: color),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      items[i],
+                      style: GoogleFonts.poppins(
+                        fontSize: 13.5,
+                        height: 1.5,
+                        color: Colors.grey[850],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionsSection(Map<Priority, List<String>> actions) {
+    final blocks = <Widget>[];
+    actions.forEach((priority, items) {
+      if (items.isEmpty) return;
+      if (blocks.isNotEmpty) blocks.add(const SizedBox(height: 16));
+      blocks.add(_priorityBlock(priority, items));
+    });
+
+    return _sectionShell(
+      title: 'Qué hacer primero',
+      icon: Icons.flag_rounded,
+      color: const Color(0xFFF57C00),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: blocks),
+    );
+  }
+
+  Widget _priorityBlock(Priority priority, List<String> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(color: priority.color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              priority.label,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: priority.color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        for (final item in items)
+          Padding(
+            padding: const EdgeInsets.only(left: 20, bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.check_circle_outline_rounded, size: 17, color: priority.color),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    item,
+                    style: GoogleFonts.poppins(fontSize: 13, height: 1.45, color: Colors.grey[850]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _recommendationSection(String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.amber.withOpacity(0.18), Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.amber.withOpacity(0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.25),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFB8860B)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Recomendación de Maya',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF2D3436),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  text,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13.5,
+                    height: 1.5,
+                    color: Colors.grey[850],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricCard(
+    String title,
+    String val,
+    IconData icon,
+    Color color,
+    String trend, {
+    double? progress,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))
         ],
@@ -260,11 +641,18 @@ class _ApiaryInsightsPageState extends ConsumerState<ApiaryInsightsPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 24),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
               Flexible(
                 child: Text(
-                  trend, 
-                  style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
+                  trend,
+                  style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -275,9 +663,21 @@ class _ApiaryInsightsPageState extends ConsumerState<ApiaryInsightsPage> {
             children: [
               FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Text(val, style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436))),
+                child: Text(val, style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436))),
               ),
               Text(title, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]), overflow: TextOverflow.ellipsis),
+              if (progress != null) ...[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    backgroundColor: color.withOpacity(0.12),
+                    color: color,
+                  ),
+                ),
+              ],
             ],
           ),
         ],

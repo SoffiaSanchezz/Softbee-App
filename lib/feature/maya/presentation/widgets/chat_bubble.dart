@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../domain/entities/chat_message.dart';
+import '../report/maya_report.dart';
+import '../report/maya_report_view.dart';
 
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
@@ -10,7 +12,18 @@ class ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == MessageRole.user;
-    
+
+    // Los informes de Maya (texto largo y estructurado) se muestran como un
+    // informe ejecutivo con tarjetas. El contenido no se modifica, solo su
+    // presentación. Los mensajes cortos conservan la burbuja de chat.
+    if (!isUser && MayaReport.looksLikeReport(message.content)) {
+      final report = MayaReport.parse(message.content, message.timestamp);
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        child: MayaReportView(report: report),
+      );
+    }
+
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
