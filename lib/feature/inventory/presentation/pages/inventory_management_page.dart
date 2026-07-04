@@ -5,8 +5,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:Softbee/feature/inventory/data/models/inventory_item.dart';
+import 'package:Softbee/feature/inventory/domain/entities/inventory_category.dart';
+import 'package:Softbee/feature/inventory/presentation/providers/categories_provider.dart';
 import 'package:Softbee/feature/inventory/presentation/providers/inventory_controller.dart';
 import 'package:Softbee/feature/inventory/presentation/providers/inventory_state.dart';
+import 'package:Softbee/feature/inventory/presentation/widgets/category_management_dialog.dart';
 import 'package:Softbee/feature/inventory/presentation/widgets/error_display_widget.dart';
 import 'package:Softbee/feature/inventory/presentation/widgets/loading_indicator_widget.dart';
 
@@ -108,15 +111,13 @@ class _InventoryManagementPageState
     'Docenas',
   ];
 
-  final List<String> categorias = [
-    'General',
-    'Equipos',
-    'Medicamentos',
-    'Alimentación',
-    'Herramientas',
-    'Protección',
-    'Cosecha',
-  ];
+  // Las categorías ahora provienen del módulo de categorías (con icono y color),
+  // gestionable por el usuario. Se exponen como nombres para el resto del código.
+  List<String> get categorias {
+    final names =
+        ref.read(categoriesProvider).categories.map((c) => c.name).toList();
+    return names.isEmpty ? const ['Otros'] : names;
+  }
 
   // Función para normalizar unidades del backend al frontend
   String _normalizarUnidad(String? unit) {
@@ -172,10 +173,12 @@ class _InventoryManagementPageState
     return 'Unidades';
   }
 
-  // Método para obtener el ícono según la categoría
+  // Ícono de la categoría (dinámico desde el módulo de categorías).
   IconData _getIconForCategory(String? category) {
-    final cat = category?.trim() ?? 'General';
-    switch (cat) {
+    final cat = ref.read(categoriesProvider).findByName(category);
+    if (cat != null) return cat.icon;
+    // Fallback para nombres heredados que aún no sean categorías registradas.
+    switch (category?.trim()) {
       case 'Equipos':
         return Icons.precision_manufacturing;
       case 'Herramientas':
@@ -188,10 +191,15 @@ class _InventoryManagementPageState
         return Icons.opacity;
       case 'Cosecha':
         return Icons.shopping_basket;
-      case 'General':
       default:
         return Icons.inventory_2;
     }
+  }
+
+  // Color representativo de la categoría (dinámico). Ámbar por defecto.
+  Color _getColorForCategory(String? category) {
+    return ref.read(categoriesProvider).findByName(category)?.color ??
+        Colors.amber.shade700;
   }
 
   // Controlador de animación
@@ -450,247 +458,641 @@ class _InventoryManagementPageState
   }
 
   void _mostrarDialogoAgregar(InventoryController controller) {
-    showDialog(
+    // Garantiza una categoría válida seleccionada por defecto (no altera la lógica de guardado).
+    if (!controller.state.isEditing &&
+        !categorias.contains(categoriaSeleccionada)) {
+      categoriaSeleccionada =
+          categorias.isNotEmpty ? categorias.first : categoriaSeleccionada;
+    }
+
+    showGeneralDialog(
       context: context,
-      builder: (BuildContext context) {
+      barrierDismissible: true,
+      barrierLabel: 'Formulario de insumo',
+      barrierColor: Colors.black.withOpacity(0.45),
+      transitionDuration: const Duration(milliseconds: 260),
+      transitionBuilder: (context, anim, _, child) {
+        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (BuildContext context, _, __) {
+        final screenSize = MediaQuery.of(context).size;
+        final bool isMobile = screenSize.width < ResponsiveBreakpoints.mobile;
+        final bool isDesktop = screenSize.width >= ResponsiveBreakpoints.desktop;
+        // Modal ~35-40% más grande en escritorio para que no se vea comprimido.
+        final double dialogWidth =
+            isMobile ? screenSize.width : (isDesktop ? 820 : 680);
+
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Row(
-                children: [
-                  Icon(
-                    controller.state.isEditing ? Icons.edit : Icons.add_circle,
-                    color: Colors.amber,
+            final bool isEditing = controller.state.isEditing;
+            return Center(
+              child: Dialog(
+                insetPadding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 12 : 24,
+                  vertical: 24,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                clipBehavior: Clip.antiAlias,
+                backgroundColor: const Color(0xFFF8F5F0),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: dialogWidth,
+                    maxHeight: screenSize.height * 0.92,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    controller.state.isEditing
-                        ? 'Editar Insumo'
-                        : 'Agregar Insumo',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Form(
-                  key: _formKeyAgregar,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Información Básica',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber[800],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ---------- Header ----------
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.amber.shade400, Colors.amber.shade600],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: nombreController,
-                        decoration: InputDecoration(
-                          labelText: 'Nombre del insumo',
-                          hintText: 'Ej: Traje de apicultor',
-                          prefixIcon: const Icon(Icons.inventory_2, color: Colors.amber),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        validator: (value) => value == null || value.trim().isEmpty ? 'Ingresa un nombre' : null,
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
+                      child: Row(
                         children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: cantidadController,
-                              decoration: InputDecoration(
-                                labelText: 'Cantidad',
-                                prefixIcon: const Icon(Icons.numbers, color: Colors.amber),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) => value == null || value.isEmpty ? 'Requerido' : null,
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              isEditing ? Icons.edit_rounded : Icons.add_box_rounded,
+                              color: Colors.white,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
-                              initialValue: unidadSeleccionada,
-                              isExpanded: true,
-                              decoration: InputDecoration(
-                                labelText: 'Unidad',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isEditing ? 'Editar Insumo' : 'Agregar Insumo',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  'Completa la información del producto',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.9),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, color: Colors.white),
+                            onPressed: () {
+                              _limpiarFormulario(controller);
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    // ---------- Cuerpo desplazable ----------
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(20),
+                        child: Form(
+                          key: _formKeyAgregar,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // ===== Información del Producto (categoría = elemento principal) =====
+                              _buildFormSection(
+                                title: 'Información del Producto',
+                                icon: Icons.category_rounded,
+                                children: [
+                                  _buildProductPreview(),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Categoría',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey[800],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildCategorySelector(setDialogState),
+                                  const SizedBox(height: 16),
+                                  TextFormField(
+                                    controller: nombreController,
+                                    style: GoogleFonts.poppins(),
+                                    decoration: _modernInput(
+                                      label: 'Nombre del insumo',
+                                      hint: 'Ej: Traje de apicultor',
+                                      icon: Icons.inventory_2_rounded,
+                                    ),
+                                    validator: (value) =>
+                                        value == null || value.trim().isEmpty
+                                            ? 'Ingresa un nombre'
+                                            : null,
+                                  ),
+                                ],
                               ),
-                              items: unidades.map((u) => DropdownMenuItem(value: u, child: Text(u, overflow: TextOverflow.ellipsis))).toList(),
-                              onChanged: (v) => setDialogState(() => unidadSeleccionada = v!),
+                              const SizedBox(height: 16),
+                              // ===== Inventario =====
+                              _buildFormSection(
+                                title: 'Inventario',
+                                icon: Icons.inventory_rounded,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: TextFormField(
+                                          controller: cantidadController,
+                                          keyboardType: TextInputType.number,
+                                          style: GoogleFonts.poppins(),
+                                          decoration: _modernInput(
+                                            label: 'Cantidad',
+                                            icon: Icons.numbers_rounded,
+                                          ),
+                                          validator: (value) =>
+                                              value == null || value.isEmpty
+                                                  ? 'Requerido'
+                                                  : null,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: DropdownButtonFormField<String>(
+                                          initialValue: unidadSeleccionada,
+                                          isExpanded: true,
+                                          style: GoogleFonts.poppins(color: Colors.black87),
+                                          decoration: _modernInput(
+                                            label: 'Unidad',
+                                            icon: Icons.straighten_rounded,
+                                          ),
+                                          items: unidades
+                                              .map((u) => DropdownMenuItem(
+                                                    value: u,
+                                                    child: Text(u, overflow: TextOverflow.ellipsis),
+                                                  ))
+                                              .toList(),
+                                          onChanged: (v) =>
+                                              setDialogState(() => unidadSeleccionada = v!),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  TextFormField(
+                                    controller: stockMinimoController,
+                                    keyboardType: TextInputType.number,
+                                    style: GoogleFonts.poppins(),
+                                    decoration: _modernInput(
+                                      label: 'Stock mínimo (alerta)',
+                                      hint: 'Se avisará al bajar de este valor',
+                                      icon: Icons.warning_amber_rounded,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              // ===== Control de Calidad y Lote (condicional) =====
+                              if (['Medicamentos', 'Alimentación', 'Cosecha', 'Tratamientos', 'Producción']
+                                  .contains(categoriaSeleccionada)) ...[
+                                _buildFormSection(
+                                  title: 'Control de Calidad y Lote',
+                                  icon: Icons.verified_rounded,
+                                  children: [
+                                    TextFormField(
+                                      controller: loteController,
+                                      style: GoogleFonts.poppins(),
+                                      decoration: _modernInput(
+                                        label: 'Número de lote',
+                                        hint: 'Ej: LOT-2024-001',
+                                        icon: Icons.qr_code_rounded,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _buildDateField(
+                                      label: 'Fecha de vencimiento',
+                                      icon: Icons.event_busy_rounded,
+                                      value: fechaVencimiento,
+                                      onTap: () async {
+                                        final picked = await showDatePicker(
+                                          context: context,
+                                          initialDate: fechaVencimiento ??
+                                              DateTime.now().add(const Duration(days: 365)),
+                                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                                          lastDate: DateTime.now().add(const Duration(days: 3650)),
+                                        );
+                                        if (picked != null) setDialogState(() => fechaVencimiento = picked);
+                                      },
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _buildDateField(
+                                      label: 'Fecha de compra',
+                                      icon: Icons.shopping_cart_rounded,
+                                      value: fechaCompra,
+                                      onTap: () async {
+                                        final picked = await showDatePicker(
+                                          context: context,
+                                          initialDate: fechaCompra ?? DateTime.now(),
+                                          firstDate: DateTime.now().subtract(const Duration(days: 3650)),
+                                          lastDate: DateTime.now(),
+                                        );
+                                        if (picked != null) setDialogState(() => fechaCompra = picked);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              // ===== Ubicación y Observaciones =====
+                              _buildFormSection(
+                                title: 'Ubicación y Observaciones',
+                                icon: Icons.place_rounded,
+                                children: [
+                                  _twoColumn(
+                                    isMobile,
+                                    TextFormField(
+                                      controller: proveedorController,
+                                      style: GoogleFonts.poppins(),
+                                      decoration: _modernInput(
+                                        label: 'Proveedor',
+                                        hint: 'Opcional',
+                                        icon: Icons.business_rounded,
+                                      ),
+                                    ),
+                                    TextFormField(
+                                      controller: ubicacionController,
+                                      style: GoogleFonts.poppins(),
+                                      decoration: _modernInput(
+                                        label: 'Ubicación en almacén',
+                                        hint: 'Opcional',
+                                        icon: Icons.place_rounded,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 18),
+                                  TextFormField(
+                                    controller: descripcionController,
+                                    style: GoogleFonts.poppins(),
+                                    maxLines: 3,
+                                    decoration: _modernInput(
+                                      label: 'Notas adicionales',
+                                      hint: 'Observaciones, detalles, etc.',
+                                      icon: Icons.notes_rounded,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // ---------- Footer fijo (sticky) ----------
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.grey[700],
+                                side: BorderSide(color: Colors.grey.shade300),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: () {
+                                _limpiarFormulario(controller);
+                                Navigator.of(context).pop();
+                              },
+                              child: Text(
+                                'Cancelar',
+                                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: Icon(isEditing ? Icons.save_rounded : Icons.add_rounded),
+                              onPressed: () => _guardarInsumo(controller, controller.state),
+                              label: Text(
+                                isEditing ? 'Actualizar' : 'Guardar Insumo',
+                                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: categoriaSeleccionada,
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          labelText: 'Categoría',
-                          prefixIcon: const Icon(Icons.category, color: Colors.amber),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        items: categorias.map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(),
-                        onChanged: (v) => setDialogState(() => categoriaSeleccionada = v!),
-                      ),
-                      
-                      // Lógica Dinámica: Mostrar campos de calidad solo para categorías específicas
-                      if (['Medicamentos', 'Alimentación', 'Cosecha'].contains(categoriaSeleccionada)) ...[
-                        const SizedBox(height: 20),
-                        Text(
-                          'Control de Calidad y Lote',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.amber[800],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: loteController,
-                          decoration: InputDecoration(
-                            labelText: 'Número de Lote',
-                            hintText: 'Ej: LOT-2024-001',
-                            prefixIcon: const Icon(Icons.qr_code, color: Colors.amber),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        InkWell(
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: fechaVencimiento ?? DateTime.now().add(const Duration(days: 365)),
-                              firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                              lastDate: DateTime.now().add(const Duration(days: 3650)),
-                            );
-                            if (picked != null) setDialogState(() => fechaVencimiento = picked);
-                          },
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Fecha de Vencimiento',
-                              prefixIcon: const Icon(Icons.calendar_today, color: Colors.amber),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            child: Text(
-                              fechaVencimiento == null 
-                                  ? 'Seleccionar fecha' 
-                                  : '${fechaVencimiento!.day}/${fechaVencimiento!.month}/${fechaVencimiento!.year}',
-                              style: GoogleFonts.poppins(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        InkWell(
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: fechaCompra ?? DateTime.now(),
-                              firstDate: DateTime.now().subtract(const Duration(days: 3650)),
-                              lastDate: DateTime.now(),
-                            );
-                            if (picked != null) setDialogState(() => fechaCompra = picked);
-                          },
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Fecha de Compra',
-                              prefixIcon: const Icon(Icons.shopping_cart, color: Colors.amber),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            child: Text(
-                              fechaCompra == null 
-                                  ? 'Seleccionar fecha' 
-                                  : '${fechaCompra!.day}/${fechaCompra!.month}/${fechaCompra!.year}',
-                              style: GoogleFonts.poppins(),
-                            ),
-                          ),
-                        ),
-                      ],
-                      
-                      const SizedBox(height: 20),
-                      Text(
-                        'Logística',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber[800],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: stockMinimoController,
-                        decoration: InputDecoration(
-                          labelText: 'Stock Mínimo (Alerta)',
-                          prefixIcon: const Icon(Icons.warning_amber, color: Colors.amber),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: proveedorController,
-                        decoration: InputDecoration(
-                          labelText: 'Proveedor',
-                          prefixIcon: const Icon(Icons.business, color: Colors.amber),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: ubicacionController,
-                        decoration: InputDecoration(
-                          labelText: 'Ubicación en Almacén',
-                          prefixIcon: const Icon(Icons.place, color: Colors.amber),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: descripcionController,
-                        decoration: InputDecoration(
-                          labelText: 'Notas adicionales',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        maxLines: 2,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    _limpiarFormulario(controller);
-                    Navigator.of(context).pop();
-                  },
-                  child: Text('Cancelar', style: GoogleFonts.poppins(color: Colors.grey[600])),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () => _guardarInsumo(controller, controller.state),
-                  child: Text(
-                    controller.state.isEditing ? 'Actualizar' : 'Guardar Insumo',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            );
+            ),
+          );
           },
         );
       },
+    );
+  }
+
+  // ================= Helpers de UI del formulario =================
+
+  /// Distribuye dos campos en dos columnas (Desktop/Tablet) o apilados (Mobile).
+  Widget _twoColumn(bool isMobile, Widget a, Widget b, {double gap = 16}) {
+    if (isMobile) {
+      return Column(
+        children: [a, SizedBox(height: gap), b],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: a),
+        SizedBox(width: gap),
+        Expanded(child: b),
+      ],
+    );
+  }
+
+  InputDecoration _modernInput({
+    required String label,
+    String? hint,
+    required IconData icon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      hintStyle: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 13),
+      labelStyle: GoogleFonts.poppins(color: Colors.grey[700], fontSize: 14),
+      prefixIcon: Icon(icon, color: Colors.amber[700], size: 22),
+      filled: true,
+      fillColor: Colors.white,
+      isDense: false,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.amber, width: 1.8),
+      ),
+    );
+  }
+
+  Widget _buildFormSection({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 20, color: Colors.amber[800]),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[850],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategorySelector(void Function(void Function()) setDialogState) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        ...categorias.map((c) {
+          final bool selected = c == categoriaSeleccionada;
+          final color = _getColorForCategory(c);
+          return InkWell(
+            onTap: () => setDialogState(() => categoriaSeleccionada = c),
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: selected ? color.withOpacity(0.15) : Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected ? color : Colors.grey.shade200,
+                  width: selected ? 2 : 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(_getIconForCategory(c), size: 18, color: color),
+                  const SizedBox(width: 8),
+                  Text(
+                    c,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      color: selected ? color : Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+        // Botón para gestionar categorías
+        InkWell(
+          onTap: () async {
+            await CategoryManagementDialog.show(context);
+            setDialogState(() {});
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.tune_rounded, size: 18, color: Colors.amber[800]),
+                const SizedBox(width: 6),
+                Text(
+                  'Gestionar',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.amber[900],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProductPreview() {
+    final color = _getColorForCategory(categoriaSeleccionada);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color.withOpacity(0.12), Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              _getIconForCategory(categoriaSeleccionada),
+              color: color,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: nombreController,
+                  builder: (context, value, _) {
+                    final name = value.text.trim();
+                    return Text(
+                      name.isEmpty ? 'Nombre del producto' : name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: name.isEmpty ? Colors.grey[400] : Colors.grey[850],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  categoriaSeleccionada,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateField({
+    required String label,
+    required IconData icon,
+    required DateTime? value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: _modernInput(label: label, icon: icon),
+        child: Text(
+          value == null
+              ? 'Seleccionar fecha'
+              : '${value.day}/${value.month}/${value.year}',
+          style: GoogleFonts.poppins(
+            color: value == null ? Colors.grey[500] : Colors.grey[850],
+          ),
+        ),
+      ),
     );
   }
 
@@ -741,6 +1143,9 @@ class _InventoryManagementPageState
 
   @override
   Widget build(BuildContext context) {
+    // Observamos las categorías para que filtros, iconos y colores se
+    // actualicen automáticamente cuando el usuario las gestione.
+    ref.watch(categoriesProvider);
     final inventoryState = ref.watch(
       inventoryControllerProvider(widget.apiaryId),
     );
@@ -1177,7 +1582,7 @@ class _InventoryManagementPageState
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
               child: Row(
                 children: [
-                  Icon(_getIconForCategory(category), color: Colors.amber[800], size: 24),
+                  Icon(_getIconForCategory(category), color: _getColorForCategory(category), size: 24),
                   const SizedBox(width: 12),
                   Text(
                     category,
@@ -1300,12 +1705,15 @@ class _InventoryManagementPageState
                         decoration: BoxDecoration(
                           color: estadoCritico
                               ? Colors.red[100]
-                              : Colors.amber[100],
+                              : _getColorForCategory(insumo.category)
+                                  .withOpacity(0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           _getIconForCategory(insumo.category),
-                          color: estadoCritico ? Colors.red : Colors.amber[700],
+                          color: estadoCritico
+                              ? Colors.red
+                              : _getColorForCategory(insumo.category),
                           size: isDesktop ? 26 : 20,
                         ),
                       ),
