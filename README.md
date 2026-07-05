@@ -12,7 +12,7 @@
 
 Actualmente, el proyecto se encuentra en la **Fase de Desarrollo de Funcionalidades Core**. Se ha implementado la base arquitectónica y los módulos fundamentales:
 
-- [x] **Arquitectura Base:** Estructura de Clean Architecture establecida.
+- [x] **Arquitectura Base:** Estructura modular establecida.
 - [x] **Core System:** Gestión de red (Dio), Rutas (GoRouter) y Tematización.
 - [x] **Módulo de Autenticación:** Integración con seguridad local y almacenamiento persistente.
 - [x] **Gestión de Apiarios:** Visualización y lógica de dominio básica.
@@ -22,7 +22,7 @@ Actualmente, el proyecto se encuentra en la **Fase de Desarrollo de Funcionalida
 
 ## 🏗️ Arquitectura
 
-El proyecto sigue los principios de **Clean Architecture**, separando las responsabilidades en capas para garantizar un código testeable, mantenible y desacoplado:
+El proyecto sigue principios de diseño modular, separando las responsabilidades en capas para garantizar un código testeable, mantenible y desacoplado:
 
 ### Capas del Proyecto:
 1.  **Data:** Repositorios físicos, fuentes de datos (locales/remotas) y modelos (Mappers).
