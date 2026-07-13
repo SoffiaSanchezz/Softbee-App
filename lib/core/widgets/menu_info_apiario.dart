@@ -70,6 +70,13 @@ class _ApiaryDashboardMenuState extends ConsumerState<ApiaryDashboardMenu>
         routeName: AppRoutes.inventoryRoute, 
       ),
       MenuItemData(
+        title: 'Preguntas',
+        description: 'Banco de preguntas del apiario',
+        icon: Icons.library_books_rounded,
+        color: AppColors.primaryYellow,
+        routeName: AppRoutes.questionsManagementRoute,
+      ),
+      MenuItemData(
         title: 'Reportes',
         description: 'Genera informes de producción',
         icon: Icons.insert_chart_rounded,

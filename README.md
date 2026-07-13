@@ -12,7 +12,7 @@
 
 Actualmente, el proyecto se encuentra en la **Fase de Desarrollo de Funcionalidades Core**. Se ha implementado la base arquitectónica y los módulos fundamentales:
 
-- [x] **Arquitectura Base:** Estructura modular establecida.
+- [x] **Arquitectura Base:** Estructura de Clean Architecture establecida.
 - [x] **Core System:** Gestión de red (Dio), Rutas (GoRouter) y Tematización.
 - [x] **Módulo de Autenticación:** Integración con seguridad local y almacenamiento persistente.
 - [x] **Gestión de Apiarios:** Visualización y lógica de dominio básica.
@@ -22,7 +22,7 @@ Actualmente, el proyecto se encuentra en la **Fase de Desarrollo de Funcionalida
 
 ## 🏗️ Arquitectura
 
-El proyecto sigue principios de diseño modular, separando las responsabilidades en capas para garantizar un código testeable, mantenible y desacoplado:
+El proyecto sigue los principios de **Clean Architecture**, separando las responsabilidades en capas para garantizar un código testeable, mantenible y desacoplado:
 
 ### Capas del Proyecto:
 1.  **Data:** Repositorios físicos, fuentes de datos (locales/remotas) y modelos (Mappers).
@@ -102,6 +102,37 @@ La aplicación utiliza una paleta de colores inspirada en la naturaleza y la api
 
 - **Tipografía:** Google Fonts (Roboto/Oswald).
 - **Animaciones:** `lottie`, `flutter_animate`.
+
+---
+
+## 📚 App Documentation
+
+<p align="start">
+  La documentación oficial de <strong>Softbee</strong> explica la arquitectura, módulos y funcionamiento interno de la aplicación.
+  Está diseñada para desarrolladores que deseen entender, mantener o contribuir al proyecto.
+</p>
+
+<br>
+
+<p align="start">
+  <a href="https://soffiasanchezz-softbee-app-55.mintlify.app/introduction">
+    <img src="https://img.icons8.com/fluency/96/book.png" width="60"/>
+    <br><br>
+    <strong>Open Softbee Documentation</strong>
+  </a>
+</p>
+
+<br>
+
+### 📑 Qué encontrarás en la documentación
+
+| Sección | Descripción |
+|--------|-------------|
+| 🚀 Introduction | Visión general del proyecto |
+| 🏗 Architecture | Explicación de Clean Architecture |
+| 🧩 Features | Módulos principales del sistema |
+| 🔌 API Integration | Manejo de servicios HTTP |
+| 🛠 Development Guide | Cómo ejecutar y contribuir |
 
 ---
 
