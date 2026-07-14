@@ -2,6 +2,7 @@ import 'package:either_dart/either.dart';
 import '../../../../core/error/failures.dart';
 import '../../../auth/data/datasources/auth_local_datasource.dart';
 import '../../domain/entities/question_model.dart';
+import '../../domain/entities/hive_question.dart';
 import '../../domain/repositories/question_repository.dart';
 import '../datasources/question_remote_datasource.dart';
 
@@ -20,6 +21,18 @@ class QuestionRepositoryImpl implements QuestionRepository {
       final token = await localDataSource.getToken();
       if (token == null) return const Left(AuthFailure('No token found'));
       final result = await remoteDataSource.getPreguntas(apiaryId, token);
+      return Right(result);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<HiveQuestion>>> getHiveQuestions(String hiveId) async {
+    try {
+      final token = await localDataSource.getToken();
+      if (token == null) return const Left(AuthFailure('No token found'));
+      final result = await remoteDataSource.getHiveQuestions(hiveId, token);
       return Right(result);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
@@ -96,6 +109,41 @@ class QuestionRepositoryImpl implements QuestionRepository {
       if (token == null) return const Left(AuthFailure('No token found'));
       final result = await remoteDataSource.getTemplates(token);
       return Right(result);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, HiveQuestion>> assignQuestionToHive(
+    String hiveId,
+    String apiaryQuestionId,
+    int order,
+  ) async {
+    try {
+      final token = await localDataSource.getToken();
+      if (token == null) return const Left(AuthFailure('No token found'));
+      final result = await remoteDataSource.assignQuestionToHive(
+        hiveId,
+        apiaryQuestionId,
+        order,
+        token,
+      );
+      return Right(result);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> unassignQuestionFromHive(
+    String hiveQuestionId,
+  ) async {
+    try {
+      final token = await localDataSource.getToken();
+      if (token == null) return const Left(AuthFailure('No token found'));
+      await remoteDataSource.unassignQuestionFromHive(hiveQuestionId, token);
+      return const Right(null);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

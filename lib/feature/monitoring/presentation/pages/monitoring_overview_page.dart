@@ -58,10 +58,58 @@ class MonitoringOverviewPage extends StatelessWidget {
             ),
 
             // --- Espacio inferior ---
-            const SliverToBoxAdapter(child: SizedBox(height: 40)),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Botón Maya Voz
+            FloatingActionButton.extended(
+              heroTag: 'mayaVoiceMon',
+              onPressed: () {
+                context.pushNamed(
+                  AppRoutes.mayaVoiceRoute,
+                  pathParameters: {'apiaryId': apiaryId},
+                );
+              },
+              backgroundColor: const Color(0xFFFBC209),
+              icon: const Icon(Icons.mic, color: Colors.white),
+              label: Text(
+                'Maya Voz',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+
+            // Botón Maya Bot
+            FloatingActionButton.extended(
+              heroTag: 'mayaChatMon',
+              onPressed: () {
+                context.pushNamed(
+                  AppRoutes.mayaChatRoute,
+                  pathParameters: {'apiaryId': apiaryId},
+                );
+              },
+              backgroundColor: const Color(0xFFFBC209),
+              icon: const Icon(Icons.auto_awesome, color: Colors.white),
+              label: Text(
+                'Maya Bot',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -221,11 +269,15 @@ class MonitoringOverviewPage extends StatelessWidget {
   SliverGrid _buildGridCards(BuildContext context) {
     final items = _getMonitoringItems(context);
     return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      // Auto-fit: el nº de columnas se calcula según el ancho disponible
+      // (equivalente a grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))).
+      // Así las tarjetas ocupan mejor el ancho: 4 en una fila cuando caben,
+      // y bajan a 3 o 2 automáticamente en pantallas más angostas.
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 360,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        childAspectRatio: 1.1,
+        childAspectRatio: 1.0,
       ),
       delegate: SliverChildBuilderDelegate(
         (context, index) =>
@@ -438,26 +490,37 @@ class MonitoringOverviewPage extends StatelessWidget {
         },
       ),
       _MonitoringItem(
-        title: 'Maya',
-        description: 'Asistente de voz para ayudarte con tus apiarios.',
-        icon: Icons.mic_rounded,
-        backgroundColor: _cardMaya,
-        accentColor: _iconMaya,
+        title: 'Informes',
+        description: 'Visualiza el historial y resultados de tus monitoreos.',
+        icon: Icons.analytics_rounded,
+        backgroundColor: const Color(0xFFF3E5F5),
+        accentColor: Colors.purple,
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Navegar a Maya (TODO)',
-                style: GoogleFonts.poppins(),
-              ),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+          // Primero seleccionamos la colmena para ver sus informes
+          context.goNamed(
+            AppRoutes.beehiveManagementRoute,
+            pathParameters: {'apiaryId': apiaryId},
+            queryParameters: {
+              'apiaryName': apiaryName ?? '',
+              'isSelectionMode': 'true',
+            },
           );
         },
       ),
+      // if (!kIsWeb) // Desactivado para pruebas en Web
+        _MonitoringItem(
+          title: 'Maya',
+          description: 'Asistente de voz para ayudarte con tus apiarios.',
+          icon: Icons.mic_rounded,
+          backgroundColor: _cardMaya,
+          accentColor: _iconMaya,
+          onTap: () {
+            context.goNamed(
+              AppRoutes.mayaVoiceRoute,
+              pathParameters: {'apiaryId': apiaryId},
+            );
+          },
+        ),
     ];
   }
 }

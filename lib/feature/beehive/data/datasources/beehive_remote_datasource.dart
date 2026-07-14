@@ -15,6 +15,7 @@ abstract class BeehiveRemoteDataSource {
     String? healthStatus,
     String? hasProductionChamber,
     String? observations,
+    bool treatments,
     String token,
   );
   Future<Beehive> updateBeehive(
@@ -29,6 +30,7 @@ abstract class BeehiveRemoteDataSource {
     String? healthStatus,
     String? hasProductionChamber,
     String? observations,
+    bool? treatments,
     String token,
   );
   Future<void> deleteBeehive(String beehiveId, String apiaryId, String token);
@@ -85,6 +87,7 @@ class BeehiveRemoteDataSourceImpl implements BeehiveRemoteDataSource {
     String? healthStatus,
     String? hasProductionChamber,
     String? observations,
+    bool treatments,
     String token,
   ) async {
     try {
@@ -101,6 +104,7 @@ class BeehiveRemoteDataSourceImpl implements BeehiveRemoteDataSource {
           'health_status': healthStatus,
           'has_production_chamber': hasProductionChamber,
           'observations': observations,
+          'treatments': treatments,
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -139,6 +143,7 @@ class BeehiveRemoteDataSourceImpl implements BeehiveRemoteDataSource {
     String? healthStatus,
     String? hasProductionChamber,
     String? observations,
+    bool? treatments,
     String token,
   ) async {
     try {
@@ -156,6 +161,7 @@ class BeehiveRemoteDataSourceImpl implements BeehiveRemoteDataSource {
           if (hasProductionChamber != null)
             'has_production_chamber': hasProductionChamber,
           if (observations != null) 'observations': observations,
+          if (treatments != null) 'treatments': treatments,
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );

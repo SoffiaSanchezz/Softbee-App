@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../core/entities/user.dart';
+import '../../core/errors/auth_error.dart';
 import 'auth_local_datasource.dart'; // Importar AuthLocalDataSource
 
 abstract class AuthRemoteDataSource {
@@ -17,7 +18,6 @@ abstract class AuthRemoteDataSource {
     String apiaryName,
     String location,
     int beehivesCount,
-    bool treatments,
     String token,
   );
 }
@@ -122,24 +122,48 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           await localDataSource.saveToken(token); // Guardar el token
           return token;
         } else {
-          throw Exception('Token o datos de usuario no recibidos del servidor');
+          throw const AuthException(
+            AuthErrorCode.serverError,
+            'Token o datos de usuario no recibidos del servidor.',
+          );
         }
       } else {
-        throw Exception(
-          response.data['message'] ?? 'Error de inicio de sesión',
+        throw AuthException(
+          AuthErrorCode.serverError,
+          authErrorMessage(
+            response.data is Map ? response.data['error_code'] : null,
+            fallback: response.data is Map
+                ? (response.data['message'] ?? response.data['error'])
+                : null,
+          ),
         );
       }
     } on DioException catch (e) {
+      // El backend responde con { error_code, message } y un status específico.
       if (e.response != null) {
-        throw Exception(
-          e.response!.data['message'] ??
-              'Error de red: ${e.response!.statusCode}',
+        final data = e.response!.data;
+        final String? code =
+            data is Map && data['error_code'] != null
+            ? data['error_code'].toString()
+            : null;
+        final String? serverMsg = data is Map
+            ? (data['message'] ?? data['error'])?.toString()
+            : null;
+        throw AuthException(
+          code ?? AuthErrorCode.serverError,
+          authErrorMessage(code, fallback: serverMsg),
         );
       } else {
-        throw Exception('Error de conexión: ${e.message}');
+        // Sin respuesta: problema de red/conexión (backend caído, CORS, etc.)
+        throw const AuthException(
+          AuthErrorCode.networkError,
+          'No se pudo conectar con el servidor. Verifica tu conexión.',
+        );
       }
+    } on AuthException {
+      rethrow;
     } catch (e) {
-      throw Exception('Error inesperado: $e');
+      throw AuthException(AuthErrorCode.serverError, 'Error inesperado: $e');
     }
   }
 
@@ -165,7 +189,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     String apiaryName,
     String location,
     int beehivesCount,
-    bool treatments,
     String token,
   ) async {
     try {
@@ -175,7 +198,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           'user_id': userId,
           'name': apiaryName,
           'location': location.isEmpty ? null : location, // Send null if empty
-          'treatments': treatments,
           'beehives_count': beehivesCount,
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),

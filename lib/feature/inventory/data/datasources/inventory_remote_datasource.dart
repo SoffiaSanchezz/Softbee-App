@@ -4,9 +4,8 @@ import 'package:Softbee/feature/auth/data/datasources/auth_local_datasource.dart
 import 'package:Softbee/feature/inventory/data/models/inventory_item.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:Softbee/core/network/dio_client.dart';
-import 'package:Softbee/feature/auth/presentation/providers/auth_providers.dart'; // Import for authLocalDataSourceProvider
+import 'package:Softbee/feature/auth/presentation/providers/auth_providers.dart';
 
-// Abstract class for Inventory Remote Data Source
 abstract class InventoryRemoteDataSource {
   Future<List<InventoryItem>> getInventoryItems({required String apiaryId});
   Future<InventoryItem> createInventoryItem(InventoryItem item);
@@ -18,6 +17,14 @@ abstract class InventoryRemoteDataSource {
     required String apiaryId,
   });
   Future<InventoryItem?> getInventoryItem(String itemId);
+  Future<void> recordMovement({
+    required String itemId,
+    required String type,
+    required int quantity,
+    required String reason,
+    String? notes,
+  });
+  Future<List<Map<String, dynamic>>> getMovements(String itemId);
   Future<void> recordInventoryExit({
     required String itemId,
     required int quantity,
@@ -27,10 +34,9 @@ abstract class InventoryRemoteDataSource {
   Future<List<InventoryItem>> getLowStockItems({required String apiaryId});
 }
 
-// Implementation of Inventory Remote Data Source
 class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
   final Dio _httpClient;
-  final AuthLocalDataSource _localDataSource; // To get the authentication token
+  final AuthLocalDataSource _localDataSource;
 
   InventoryRemoteDataSourceImpl(this._httpClient, this._localDataSource);
 
@@ -130,10 +136,58 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
         options: await _getAuthHeaders(),
       );
       if (response.statusCode != 200) {
-        throw ServerFailure(
-          'Failed to adjust quantity: ${response.statusCode}',
-        );
+        throw ServerFailure('Failed to adjust quantity');
       }
+    } on DioException catch (e) {
+      throw ServerFailure('Dio error: ${e.message}');
+    } catch (e) {
+      throw ServerFailure('Unknown error: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> recordMovement({
+    required String itemId,
+    required String type,
+    required int quantity,
+    required String reason,
+    String? notes,
+  }) async {
+    try {
+      final response = await _httpClient.post(
+        '/api/v1/inventory/movement',
+        data: {
+          'inventory_id': itemId,
+          'movement_type': type,
+          'quantity': quantity,
+          'reason': reason,
+          'notes': notes,
+        },
+        options: await _getAuthHeaders(),
+      );
+      if (response.statusCode != 201) {
+        throw ServerFailure('No se pudo registrar el movimiento');
+      }
+    } on DioException catch (e) {
+      // Extraemos el mensaje específico enviado por el Backend
+      final backendMessage = e.response?.data?['message']?.toString();
+      throw ServerFailure(backendMessage ?? 'Error en el servidor: ${e.message}');
+    } catch (e) {
+      throw ServerFailure('Error desconocido: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getMovements(String itemId) async {
+    try {
+      final response = await _httpClient.get(
+        '/api/v1/inventory/$itemId/movements',
+        options: await _getAuthHeaders(),
+      );
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+      return [];
     } on DioException catch (e) {
       throw ServerFailure('Dio error: ${e.message}');
     } catch (e) {
@@ -146,7 +200,6 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
     String query, {
     required String apiaryId,
   }) async {
-    // Backend doesn't have a search endpoint, we will filter locally in the controller
     final allItems = await getInventoryItems(apiaryId: apiaryId);
     return allItems
         .where(
@@ -159,7 +212,7 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
   Future<InventoryItem?> getInventoryItem(String itemId) async {
     try {
       final response = await _httpClient.get(
-        '/api/v1/inventory/$itemId', // Note: backend get_inventories is by apiary_id, might need check
+        '/api/v1/inventory/$itemId',
         options: await _getAuthHeaders(),
       );
       if (response.statusCode == 200) {
@@ -184,6 +237,12 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
     required int quantity,
     required String person,
   }) async {
+    await recordMovement(
+      itemId: itemId,
+      type: 'exit',
+      quantity: quantity,
+      reason: 'Salida registrada por $person',
+    );
     await adjustInventoryQuantity(itemId, -quantity);
   }
 
@@ -191,8 +250,6 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
   Future<Map<String, dynamic>> getInventorySummary({
     required String apiaryId,
   }) async {
-    // Backend summary is global per user (/api/v1/inventory/summary/<user_id>)
-    // For specific apiary summary, we can calculate it from the items list to avoid 404
     final items = await getInventoryItems(apiaryId: apiaryId);
     int totalQuantity = 0;
     int lowStockCount = 0;
@@ -214,7 +271,6 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
   Future<List<InventoryItem>> getLowStockItems({
     required String apiaryId,
   }) async {
-    // Filter locally to avoid 404
     final allItems = await getInventoryItems(apiaryId: apiaryId);
     return allItems
         .where((item) => item.quantity <= item.minimumStock)

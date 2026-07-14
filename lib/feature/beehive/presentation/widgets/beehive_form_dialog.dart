@@ -31,6 +31,7 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
   String? _hiveStatus;
   String? _healthStatus;
   String? _hasProductionChamber;
+  bool _treatments = false;
 
   bool _isEditing = false;
 
@@ -63,6 +64,7 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
     _hasProductionChamber = _isEditing
         ? widget.beehiveToEdit!.hasProductionChamber
         : null;
+    _treatments = _isEditing ? widget.beehiveToEdit!.treatments : false;
   }
 
   @override
@@ -101,6 +103,7 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
         _observationsController.text.isEmpty
             ? null
             : _observationsController.text,
+        _treatments,
       );
     } else {
       await beehiveController.createBeehive(
@@ -116,6 +119,7 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
         _observationsController.text.isEmpty
             ? null
             : _observationsController.text,
+        _treatments,
       );
     }
 
@@ -307,6 +311,28 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
                 maxLines: 3,
                 keyboardType: TextInputType.multiline,
               ),
+              const SizedBox(height: 15),
+              SwitchListTile(
+                title: Text(
+                  'Aplicar Tratamientos',
+                  style: GoogleFonts.poppins(),
+                ),
+                subtitle: Text(
+                  '¿Esta colmena recibe tratamientos?',
+                  style: GoogleFonts.poppins(fontSize: 12),
+                ),
+                value: _treatments,
+                onChanged: (bool value) {
+                  setState(() {
+                    _treatments = value;
+                  });
+                },
+                activeThumbColor: Colors.amber,
+                tileColor: Colors.grey.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               const SizedBox(height: 20),
               if (beehiveState.errorMessage != null)
                 Padding(
@@ -404,7 +430,7 @@ class _BeehiveFormDialogState extends ConsumerState<BeehiveFormDialog> {
     required IconData icon,
   }) {
     return DropdownButtonFormField<String?>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),

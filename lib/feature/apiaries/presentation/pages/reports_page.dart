@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:Softbee/core/router/app_routes.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 class ReportsPage extends StatelessWidget {
   final String apiaryId;
   const ReportsPage({super.key, required this.apiaryId});
@@ -7,10 +11,43 @@ class ReportsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Informes del Apiario $apiaryId')),
+      appBar: AppBar(title: Text('Informes del Apiario', style: GoogleFonts.poppins(fontWeight: FontWeight.bold))),
       body: Center(
-        child: Text('Página de Informes para Apiario ID: $apiaryId'),
+        child: Text('Página de Informes para Apiario ID: $apiaryId', style: GoogleFonts.poppins()),
       ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            FloatingActionButton.extended(
+              heroTag: 'mayaVoiceReports',
+              onPressed: () {
+                context.pushNamed(
+                  AppRoutes.mayaVoiceRoute,
+                  pathParameters: {'apiaryId': apiaryId},
+                );
+              },
+              backgroundColor: const Color(0xFFFBC209),
+              icon: const Icon(Icons.mic, color: Colors.white),
+              label: Text('Maya Voz', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+            FloatingActionButton.extended(
+              heroTag: 'mayaChatReports',
+              onPressed: () {
+                context.pushNamed(
+                  AppRoutes.mayaChatRoute,
+                  pathParameters: {'apiaryId': apiaryId},
+                );
+              },
+              backgroundColor: const Color(0xFFFBC209),
+              icon: const Icon(Icons.auto_awesome, color: Colors.white),
+              label: Text('Maya Bot', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }

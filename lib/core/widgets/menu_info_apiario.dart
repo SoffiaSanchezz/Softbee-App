@@ -1,3 +1,5 @@
+import 'package:Softbee/feature/apiaries/domain/entities/apiary.dart';
+import 'package:Softbee/feature/apiaries/presentation/providers/apiary_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -45,12 +47,14 @@ class ApiaryDashboardMenu extends ConsumerStatefulWidget {
 class _ApiaryDashboardMenuState extends ConsumerState<ApiaryDashboardMenu>
     with TickerProviderStateMixin {
   int? _hoveredIndex;
-  late final List<MenuItemData> _menuItems;
 
   @override
   void initState() {
     super.initState();
-    _menuItems = [
+  }
+
+  List<MenuItemData> _getMenuItems() {
+    return [
       MenuItemData(
         title: 'Monitoreo',
         description: 'Estado de colmenas en tiempo real',
@@ -63,7 +67,7 @@ class _ApiaryDashboardMenuState extends ConsumerState<ApiaryDashboardMenu>
         description: 'Gestiona materiales y productos',
         icon: Icons.inventory_rounded,
         color: AppColors.primaryYellow,
-        routeName: AppRoutes.inventoryRoute,
+        routeName: AppRoutes.inventoryRoute, 
       ),
       MenuItemData(
         title: 'Preguntas',
@@ -77,14 +81,14 @@ class _ApiaryDashboardMenuState extends ConsumerState<ApiaryDashboardMenu>
         description: 'Genera informes de producción',
         icon: Icons.insert_chart_rounded,
         color: AppColors.primaryYellow,
-        routeName: AppRoutes.reportsRoute,
+        routeName: AppRoutes.apiaryInsightsRoute,
       ),
       MenuItemData(
-        title: 'Historial',
-        description: 'Revisa inspecciones pasadas',
-        icon: Icons.history_edu_rounded,
+        title: 'Tratamientos',
+        description: 'Gestiona salud de abejas',
+        icon: Icons.medication_rounded,
         color: AppColors.primaryYellow,
-        routeName: AppRoutes.historyRoute,
+        routeName: AppRoutes.treatmentsRoute,
       ),
     ];
   }
@@ -109,6 +113,54 @@ class _ApiaryDashboardMenuState extends ConsumerState<ApiaryDashboardMenu>
           ),
         ),
       ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Botón Maya Voz - Siempre a la izquierda
+            FloatingActionButton.extended(
+              heroTag: 'mayaVoice',
+              onPressed: () {
+                context.pushNamed(
+                  AppRoutes.mayaVoiceRoute,
+                  pathParameters: {'apiaryId': widget.apiaryId},
+                );
+              },
+              backgroundColor: const Color(0xFFFBC209),
+              icon: const Icon(Icons.mic, color: Colors.white),
+              label: Text(
+                'Maya Voz',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ).animate().scale(delay: 400.ms, duration: 400.ms, curve: Curves.easeOutBack),
+
+            // Botón Maya Bot - Siempre a la derecha en el Dashboard
+            FloatingActionButton.extended(
+              heroTag: 'mayaChat',
+              onPressed: () {
+                context.pushNamed(
+                  AppRoutes.mayaChatRoute,
+                  pathParameters: {'apiaryId': widget.apiaryId},
+                );
+              },
+              backgroundColor: const Color(0xFFFBC209),
+              icon: const Icon(Icons.auto_awesome, color: Colors.white),
+              label: Text(
+                'Maya Bot',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ).animate().scale(delay: 400.ms, duration: 400.ms, curve: Curves.easeOutBack),
+          ],
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -161,60 +213,64 @@ class _ApiaryDashboardMenuState extends ConsumerState<ApiaryDashboardMenu>
   }
 
   Widget _buildInteractiveMenu() {
+    final menuItems = _getMenuItems();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isSmallScreen = constraints.maxWidth < 600;
 
         if (isSmallScreen) {
-          // Pantallas pequenas: Grid de 2 columnas, cards mas compactas
+          // Pantallas pequeñas: Grid de 2 columnas, cards mas compactas
           return Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
               vertical: 12.0,
             ),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.05,
+            child: SingleChildScrollView(
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.05,
+                ),
+                itemCount: menuItems.length,
+                itemBuilder: (context, index) {
+                  final item = menuItems[index];
+                  return EnhancedMenuButton(
+                        title: item.title,
+                        icon: item.icon,
+                        color: item.color,
+                        description: item.description,
+                        isHovered: _hoveredIndex == index,
+                        isCompact: true,
+                        onHover: (hovered) => setState(
+                          () => _hoveredIndex = hovered ? index : null,
+                        ),
+                        onTap: () {
+                          context.goNamed(
+                            item.routeName,
+                            pathParameters: {'apiaryId': widget.apiaryId},
+                            queryParameters: {
+                              'apiaryName': widget.apiaryName,
+                              'apiaryLocation': widget.apiaryLocation ?? '',
+                            },
+                          );
+                        },
+                      )
+                      .animate()
+                      .fadeIn(duration: 600.ms, delay: (100 * index).ms)
+                      .slideY(
+                        begin: 0.3,
+                        end: 0,
+                        duration: 600.ms,
+                        delay: (100 * index).ms,
+                        curve: Curves.easeOutQuint,
+                      );
+                },
               ),
-              itemCount: _menuItems.length,
-              itemBuilder: (context, index) {
-                final item = _menuItems[index];
-                return EnhancedMenuButton(
-                      title: item.title,
-                      icon: item.icon,
-                      color: item.color,
-                      description: item.description,
-                      isHovered: _hoveredIndex == index,
-                      isCompact: true,
-                      onHover: (hovered) => setState(
-                        () => _hoveredIndex = hovered ? index : null,
-                      ),
-                      onTap: () {
-                        context.goNamed(
-                          item.routeName,
-                          pathParameters: {'apiaryId': widget.apiaryId},
-                          queryParameters: {
-                            'apiaryName': widget.apiaryName,
-                            'apiaryLocation': widget.apiaryLocation ?? '',
-                          },
-                        );
-                      },
-                    )
-                    .animate()
-                    .fadeIn(duration: 600.ms, delay: (100 * index).ms)
-                    .slideY(
-                      begin: 0.3,
-                      end: 0,
-                      duration: 600.ms,
-                      delay: (100 * index).ms,
-                      curve: Curves.easeOutQuint,
-                    );
-              },
             ),
           );
         } else {
@@ -234,7 +290,7 @@ class _ApiaryDashboardMenuState extends ConsumerState<ApiaryDashboardMenu>
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: _menuItems.asMap().entries.map((entry) {
+                  children: menuItems.asMap().entries.map((entry) {
                     final index = entry.key;
                     final item = entry.value;
 
@@ -242,7 +298,7 @@ class _ApiaryDashboardMenuState extends ConsumerState<ApiaryDashboardMenu>
                       child: Padding(
                         padding: EdgeInsets.only(
                           left: index == 0 ? 0 : cardSpacing,
-                          right: index == _menuItems.length - 1
+                          right: index == menuItems.length - 1
                               ? 0
                               : cardSpacing,
                         ),

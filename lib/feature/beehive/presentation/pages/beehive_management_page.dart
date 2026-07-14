@@ -1,4 +1,5 @@
 import 'package:Softbee/feature/beehive/presentation/controllers/beehive_controller.dart';
+import 'package:Softbee/feature/reports/presentation/pages/reports_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,16 +8,19 @@ import 'package:percent_indicator/percent_indicator.dart';
 
 import 'package:Softbee/feature/beehive/domain/entities/beehive.dart';
 import 'package:Softbee/feature/beehive/presentation/providers/beehive_providers.dart';
-import 'package:Softbee/feature/beehive/presentation/widgets/beehive_form_dialog.dart'; // Import the new dialog
+import 'package:Softbee/feature/beehive/presentation/widgets/beehive_form_dialog.dart';
+import 'package:Softbee/feature/monitoring/presentation/pages/hive_questions_selection_page.dart';
 
 class ColmenasManagementScreen extends ConsumerStatefulWidget {
   final String apiaryId;
   final String apiaryName;
+  final bool isSelectionMode; // Nuevo: Para saber si venimos de la sección de informes
 
   const ColmenasManagementScreen({
     super.key,
     required this.apiaryId,
     required this.apiaryName,
+    this.isSelectionMode = false,
   });
 
   @override
@@ -533,22 +537,28 @@ class _ColmenasManagementScreenState
     }
 
     if (isDesktop) {
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.0,
-        ),
-        itemCount: filteredBeehives.length,
-        itemBuilder: (context, index) {
-          return _buildColmenaCard(
-            filteredBeehives[index],
-            index,
-            isDesktop,
-            isTablet,
+      // Se usa Wrap (en lugar de GridView con relación de aspecto fija) para
+      // que cada tarjeta ajuste su altura al contenido (height: auto) y no
+      // quede espacio vacío en la parte inferior. Se mantienen 2 columnas y
+      // el mismo espaciado; el diseño de la tarjeta no cambia.
+      const double spacing = 16.0;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final double itemWidth = (constraints.maxWidth - spacing) / 2;
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: List.generate(filteredBeehives.length, (index) {
+              return SizedBox(
+                width: itemWidth,
+                child: _buildColmenaCard(
+                  filteredBeehives[index],
+                  index,
+                  isDesktop,
+                  isTablet,
+                ),
+              );
+            }),
           );
         },
       );
@@ -635,7 +645,14 @@ class _ColmenasManagementScreenState
     bool isDesktop,
     bool isTablet,
   ) {
-    return Container(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: widget.isSelectionMode 
+          ? () => _navigateToReports(beehive)
+          : null,
+        borderRadius: BorderRadius.circular(isDesktop ? 20 : 16),
+        child: Container(
           width: double.infinity,
           padding: EdgeInsets.all(isDesktop ? 24 : 20),
           decoration: BoxDecoration(
@@ -648,7 +665,10 @@ class _ColmenasManagementScreenState
                 offset: const Offset(0, 8),
               ),
             ],
-            border: Border.all(color: Colors.amber[200]!, width: 1),
+            border: Border.all(
+              color: widget.isSelectionMode ? Colors.purple.withOpacity(0.3) : Colors.amber[200]!, 
+              width: widget.isSelectionMode ? 2 : 1
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -659,12 +679,12 @@ class _ColmenasManagementScreenState
                   Container(
                     padding: EdgeInsets.all(isDesktop ? 12 : 8),
                     decoration: BoxDecoration(
-                      color: Colors.amber[100],
+                      color: widget.isSelectionMode ? Colors.purple[50] : Colors.amber[100],
                       borderRadius: BorderRadius.circular(isDesktop ? 12 : 8),
                     ),
                     child: Icon(
                       Icons.hive,
-                      color: Colors.amber[700],
+                      color: widget.isSelectionMode ? Colors.purple : Colors.amber[700],
                       size: isDesktop ? 24 : 20,
                     ),
                   ),
@@ -681,12 +701,24 @@ class _ColmenasManagementScreenState
                             color: Colors.black87,
                           ),
                         ),
+                        if (widget.isSelectionMode)
+                          Text(
+                            'Toca para ver informes',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.purple,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                       ],
                     ),
                   ),
                   PopupMenuButton<String>(
                     onSelected: (value) {
                       switch (value) {
+                        case 'reports':
+                          _navigateToReports(beehive);
+                          break;
                         case 'edit':
                           _showColmenaDialog(
                             beehiveToEdit: beehive,
@@ -698,9 +730,35 @@ class _ColmenasManagementScreenState
                         case 'details':
                           _showColmenaDetails(beehive);
                           break;
+                        case 'questions':
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HiveQuestionsSelectionPage(
+                                apiaryId: widget.apiaryId,
+                                hiveId: beehive.id,
+                                hiveNumber: beehive.beehiveNumber ?? 0,
+                              ),
+                            ),
+                          );
+                          break;
                       }
                     },
                     itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'reports',
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.analytics_rounded,
+                              color: Colors.purple,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text('Ver Informes', style: GoogleFonts.poppins()),
+                          ],
+                        ),
+                      ),
                       PopupMenuItem(
                         value: 'edit',
                         child: Row(
@@ -712,6 +770,20 @@ class _ColmenasManagementScreenState
                             ),
                             const SizedBox(width: 8),
                             Text('Editar', style: GoogleFonts.poppins()),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'questions',
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.fact_check_rounded,
+                              color: Colors.orange,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text('Configurar Preguntas', style: GoogleFonts.poppins()),
                           ],
                         ),
                       ),
@@ -876,13 +948,15 @@ class _ColmenasManagementScreenState
               ],
             ],
           ),
-        )
-        .animate()
-        .fadeIn(
-          delay: Duration(milliseconds: 100 * index),
-          duration: 600.ms,
-        )
-        .slideY(begin: 0.2, end: 0);
+        ),
+      ),
+    )
+    .animate()
+    .fadeIn(
+      delay: Duration(milliseconds: 100 * index),
+      duration: 600.ms,
+    )
+    .slideY(begin: 0.2, end: 0);
   }
 
   Widget _buildInfoRow(
@@ -962,6 +1036,18 @@ class _ColmenasManagementScreenState
           ),
         ),
       ],
+    );
+  }
+
+  void _navigateToReports(Beehive beehive) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReportsPage(
+          hiveId: beehive.id,
+          hiveNumber: beehive.beehiveNumber?.toString() ?? 'N/A',
+        ),
+      ),
     );
   }
 

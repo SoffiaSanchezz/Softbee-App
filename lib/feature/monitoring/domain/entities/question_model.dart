@@ -28,22 +28,34 @@ class Pregunta extends Equatable {
   });
 
   factory Pregunta.fromJson(Map<String, dynamic> json) {
+    // Manejo robusto de opciones (puede venir como String o List)
+    List<String>? parsedOptions;
+    dynamic rawOptions = json['options'] ?? json['opciones'];
+    
+    if (rawOptions is String) {
+      parsedOptions = rawOptions.split(',').map((e) => e.trim()).toList();
+    } else if (rawOptions is List) {
+      parsedOptions = List<String>.from(rawOptions);
+    }
+
+    // Filtrar valores no deseados como '{}' o vacíos
+    parsedOptions = parsedOptions?.where((opt) => opt.isNotEmpty && opt != '{}').toList();
+
     return Pregunta(
       id: json['id']?.toString() ?? '',
       apiarioId: json['apiary_id']?.toString() ?? '',
-      texto: json['question_text'] ?? '',
-      tipoRespuesta: json['question_type'] ?? 'texto',
-      categoria: json['category'],
-      obligatoria: json['is_required'] ?? false,
-      opciones: json['options'] != null
-          ? List<String>.from(json['options'])
-          : (json['opciones'] != null
-                ? List<String>.from(json['opciones'])
-                : null),
-      min: (json['min_value'] as num?)?.toInt(),
-      max: (json['max_value'] as num?)?.toInt(),
-      orden: (json['display_order'] as num?)?.toInt() ?? 0,
-      activa: json['is_active'] ?? true,
+      texto: json['question_text'] ?? json['question'] ?? json['pregunta'] ?? '',
+      tipoRespuesta:
+          json['question_type'] ?? json['type'] ?? json['tipo'] ?? 'texto',
+      categoria: json['category'] ?? json['categoria'],
+      obligatoria: json['is_required'] ?? json['obligatoria'] ?? false,
+      opciones: parsedOptions,
+      min: (json['min_value'] as num?)?.toInt() ?? (json['min'] as num?)?.toInt(),
+      max: (json['max_value'] as num?)?.toInt() ?? (json['max'] as num?)?.toInt(),
+      orden: (json['display_order'] as num?)?.toInt() ??
+          (json['orden'] as num?)?.toInt() ??
+          0,
+      activa: json['is_active'] ?? json['activa'] ?? true,
     );
   }
 
@@ -65,8 +77,11 @@ class Pregunta extends Equatable {
       data['category'] = categoria;
     }
 
-    if (opciones != null) {
-      data['options'] = opciones;
+    if (opciones != null && opciones!.isNotEmpty) {
+      // Convertir lista a String separado por comas para el backend
+      data['options'] = opciones!.where((opt) => opt.isNotEmpty && opt != '{}').join(',');
+    } else {
+      data['options'] = null;
     }
 
     if (min != null) data['min_value'] = min;

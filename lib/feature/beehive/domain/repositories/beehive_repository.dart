@@ -15,6 +15,7 @@ abstract class BeehiveRepository {
     String? healthStatus,
     String? hasProductionChamber,
     String? observations,
+    bool treatments,
   );
   Future<Either<Failure, Beehive>> updateBeehive(
     String beehiveId,
@@ -28,6 +29,7 @@ abstract class BeehiveRepository {
     String? healthStatus,
     String? hasProductionChamber,
     String? observations,
+    bool? treatments,
   );
   Future<Either<Failure, void>> deleteBeehive(
     String beehiveId,

@@ -17,6 +17,7 @@ class UpdateBeehiveParams {
   final String? healthStatus;
   final String? hasProductionChamber;
   final String? observations;
+  final bool? treatments;
 
   UpdateBeehiveParams({
     required this.beehiveId,
@@ -30,6 +31,7 @@ class UpdateBeehiveParams {
     this.healthStatus,
     this.hasProductionChamber,
     this.observations,
+    this.treatments,
   });
 }
 
@@ -52,6 +54,7 @@ class UpdateBeehiveUseCase implements UseCase<Beehive, UpdateBeehiveParams> {
       params.healthStatus,
       params.hasProductionChamber,
       params.observations,
+      params.treatments,
     );
   }
 }

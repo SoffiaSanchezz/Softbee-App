@@ -105,18 +105,32 @@ class InventoryRepositoryImpl implements InventoryRepository {
   }
 
   @override
-  Future<Either<Failure, void>> recordInventoryExit({
+  Future<Either<Failure, void>> recordMovement({
     required String itemId,
+    required String type,
     required int quantity,
-    required String person,
+    required String reason,
+    String? notes,
   }) async {
     try {
-      await remoteDataSource.recordInventoryExit(
+      await remoteDataSource.recordMovement(
         itemId: itemId,
+        type: type,
         quantity: quantity,
-        person: person,
+        reason: reason,
+        notes: notes,
       );
       return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Map<String, dynamic>>>> getMovements(String itemId) async {
+    try {
+      final result = await remoteDataSource.getMovements(itemId);
+      return Right(result);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

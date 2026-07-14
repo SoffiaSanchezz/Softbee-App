@@ -91,6 +91,38 @@ class InventoryController extends StateNotifier<InventoryState> {
     });
   }
 
+  Future<String?> registrarMovimiento({
+    required String itemId,
+    required String type,
+    required int quantity,
+    required String reason,
+    String? notes,
+    required String apiaryId,
+  }) async {
+    final result = await _repository.recordMovement(
+      itemId: itemId,
+      type: type,
+      quantity: quantity,
+      reason: reason,
+      notes: notes,
+    );
+    return result.fold(
+      (failure) => _mapFailureToMessage(failure),
+      (_) async {
+        await loadInventoryItems(apiaryId: apiaryId);
+        return null;
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> obtenerHistorial(String itemId) async {
+    final result = await _repository.getMovements(itemId);
+    return result.fold(
+      (failure) => [],
+      (movements) => movements,
+    );
+  }
+
   void setEditingItem(InventoryItem? item) {
     state = state.copyWith(isEditing: item != null, editingItem: item);
   }

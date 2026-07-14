@@ -47,6 +47,7 @@ class BeehiveRepositoryImpl implements BeehiveRepository {
     String? healthStatus,
     String? hasProductionChamber,
     String? observations,
+    bool treatments,
   ) async {
     try {
       final token = await localDataSource.getToken();
@@ -66,6 +67,7 @@ class BeehiveRepositoryImpl implements BeehiveRepository {
         healthStatus,
         hasProductionChamber,
         observations,
+        treatments,
         token,
       );
       return Right(result);
@@ -87,6 +89,7 @@ class BeehiveRepositoryImpl implements BeehiveRepository {
     String? healthStatus,
     String? hasProductionChamber,
     String? observations,
+    bool? treatments,
   ) async {
     try {
       final token = await localDataSource.getToken();
@@ -107,6 +110,7 @@ class BeehiveRepositoryImpl implements BeehiveRepository {
         healthStatus,
         hasProductionChamber,
         observations,
+        treatments,
         token,
       );
       return Right(result);

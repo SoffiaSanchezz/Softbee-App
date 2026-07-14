@@ -1,4 +1,4 @@
-package com.example.clean_architecture_app
+package com.softbee.app
 
 import io.flutter.embedding.android.FlutterActivity
 

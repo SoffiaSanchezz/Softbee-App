@@ -15,6 +15,7 @@ class CreateBeehiveParams {
   final String? healthStatus;
   final String? hasProductionChamber;
   final String? observations;
+  final bool treatments;
 
   CreateBeehiveParams({
     required this.apiaryId,
@@ -27,6 +28,7 @@ class CreateBeehiveParams {
     this.healthStatus,
     this.hasProductionChamber,
     this.observations,
+    required this.treatments,
   });
 }
 
@@ -48,6 +50,7 @@ class CreateBeehiveUseCase implements UseCase<Beehive, CreateBeehiveParams> {
       params.healthStatus,
       params.hasProductionChamber,
       params.observations,
+      params.treatments,
     );
   }
 }

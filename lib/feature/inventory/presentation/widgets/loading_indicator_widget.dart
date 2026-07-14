@@ -5,8 +5,7 @@ class LoadingIndicatorWidget extends StatelessWidget {
   final String? message;
   final Color? color;
 
-  const LoadingIndicatorWidget({Key? key, this.message, this.color})
-    : super(key: key);
+  const LoadingIndicatorWidget({super.key, this.message, this.color});
 
   @override
   Widget build(BuildContext context) {

@@ -5,7 +5,11 @@ import '../../data/datasources/question_remote_datasource.dart';
 import '../../data/repositories/question_repository_impl.dart';
 import '../../domain/entities/question_model.dart';
 import '../../domain/repositories/question_repository.dart';
+import '../../data/datasources/answer_remote_datasource.dart';
+import '../../data/repositories/answer_repository_impl.dart';
+import '../../domain/repositories/answer_repository.dart';
 import 'questions_controller.dart';
+import 'hive_questions_selection_controller.dart';
 
 final questionRemoteDataSourceProvider = Provider<QuestionRemoteDataSource>((
   ref,
@@ -20,11 +24,30 @@ final questionRepositoryProvider = Provider<QuestionRepository>((ref) {
   );
 });
 
+final answerRemoteDataSourceProvider = Provider<AnswerRemoteDataSource>((ref) {
+  return AnswerRemoteDataSourceImpl(ref.read(dioClientProvider));
+});
+
+final answerRepositoryProvider = Provider<AnswerRepository>((ref) {
+  return AnswerRepositoryImpl(
+    remoteDataSource: ref.read(answerRemoteDataSourceProvider),
+    localDataSource: ref.read(authLocalDataSourceProvider),
+  );
+});
+
 final questionsControllerProvider =
     StateNotifierProvider.autoDispose<QuestionsController, QuestionsState>((
       ref,
     ) {
       return QuestionsController(ref.read(questionRepositoryProvider));
+    });
+
+final hiveQuestionsSelectionProvider =
+    StateNotifierProvider.autoDispose.family<HiveQuestionsSelectionController, HiveQuestionsSelectionState, String>((
+      ref,
+      hiveId,
+    ) {
+      return HiveQuestionsSelectionController(ref.read(questionRepositoryProvider));
     });
 
 class QuestionsState {

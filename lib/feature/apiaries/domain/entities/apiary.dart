@@ -6,7 +6,6 @@ class Apiary {
   final String name;
   final String? location;
   final int? beehivesCount;
-  final bool treatments;
   final DateTime? createdAt;
 
   Apiary({
@@ -15,7 +14,6 @@ class Apiary {
     required this.name,
     this.location,
     this.beehivesCount,
-    required this.treatments,
     this.createdAt,
   });
 
@@ -26,7 +24,6 @@ class Apiary {
       name: json['name'],
       location: json['location'],
       beehivesCount: json['beehives_count'],
-      treatments: json['treatments'] ?? false,
       createdAt: json['created_at'] != null
           ? DateFormat(
               "EEE, dd MMM yyyy HH:mm:ss 'GMT'",
@@ -42,7 +39,6 @@ class Apiary {
       'name': name,
       'location': location,
       'beehives_count': beehivesCount,
-      'treatments': treatments,
       'created_at': createdAt?.toIso8601String(),
     };
   }
@@ -53,7 +49,6 @@ class Apiary {
     String? name,
     String? location,
     int? beehivesCount,
-    bool? treatments,
     DateTime? createdAt,
   }) {
     return Apiary(
@@ -62,7 +57,6 @@ class Apiary {
       name: name ?? this.name,
       location: location ?? this.location,
       beehivesCount: beehivesCount ?? this.beehivesCount,
-      treatments: treatments ?? this.treatments,
       createdAt: createdAt ?? this.createdAt,
     );
   }

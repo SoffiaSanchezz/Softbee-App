@@ -18,7 +18,6 @@ class _ApiaryFormDialogState extends ConsumerState<ApiaryFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _locationController;
-  bool _treatments = false;
   bool _isLocationValid = false;
   bool _locationValidationAttempted = false;
 
@@ -33,7 +32,6 @@ class _ApiaryFormDialogState extends ConsumerState<ApiaryFormDialog> {
     _locationController = TextEditingController(
       text: widget.apiaryToEdit?.location ?? '',
     );
-    _treatments = widget.apiaryToEdit?.treatments ?? false;
 
     if (widget.apiaryToEdit?.location != null &&
         widget.apiaryToEdit!.location!.isNotEmpty) {
@@ -76,7 +74,6 @@ class _ApiaryFormDialogState extends ConsumerState<ApiaryFormDialog> {
         _nameController.text.trim(),
         locationText.isEmpty ? null : locationText,
         0, // Default to 0 beehives for new apiaries
-        _treatments,
       );
     } else {
       // Update existing apiary
@@ -85,7 +82,6 @@ class _ApiaryFormDialogState extends ConsumerState<ApiaryFormDialog> {
         _nameController.text.trim(),
         locationText.isEmpty ? null : locationText,
         widget.apiaryToEdit!.beehivesCount, // Preserve existing count on edit
-        _treatments,
       );
     }
 
@@ -199,28 +195,6 @@ class _ApiaryFormDialogState extends ConsumerState<ApiaryFormDialog> {
                   // El backend maneja cadenas vacías/nulas para la ubicación.
                   return null;
                 },
-              ),
-              const SizedBox(height: 15),
-              SwitchListTile(
-                title: Text(
-                  'Aplicar Tratamientos',
-                  style: GoogleFonts.poppins(),
-                ),
-                subtitle: Text(
-                  '¿Aplicas tratamientos cuando las abejas están enfermas?',
-                  style: GoogleFonts.poppins(fontSize: 12),
-                ),
-                value: _treatments,
-                onChanged: (bool value) {
-                  setState(() {
-                    _treatments = value;
-                  });
-                },
-                activeThumbColor: Colors.amber,
-                tileColor: Colors.grey.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
               ),
               const SizedBox(height: 20),
               if (apiariesState.errorCreating != null ||

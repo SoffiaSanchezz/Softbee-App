@@ -10,7 +10,6 @@ abstract class ApiaryRemoteDataSource {
     String name,
     String? location,
     int? beehivesCount,
-    bool treatments,
   );
   Future<Apiary> updateApiary(
     String token,
@@ -19,7 +18,6 @@ abstract class ApiaryRemoteDataSource {
     String? name,
     String? location,
     int? beehivesCount,
-    bool? treatments,
   );
   Future<void> deleteApiary(String token, String apiaryId, String userId);
 }
@@ -67,7 +65,6 @@ class ApiaryRemoteDataSourceImpl implements ApiaryRemoteDataSource {
     String name,
     String? location,
     int? beehivesCount,
-    bool treatments,
   ) async {
     try {
       final response = await httpClient.post(
@@ -77,7 +74,6 @@ class ApiaryRemoteDataSourceImpl implements ApiaryRemoteDataSource {
           'name': name,
           'location': location,
           'beehives_count': beehivesCount,
-          'treatments': treatments,
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -109,7 +105,6 @@ class ApiaryRemoteDataSourceImpl implements ApiaryRemoteDataSource {
     String? name,
     String? location,
     int? beehivesCount,
-    bool? treatments,
   ) async {
     try {
       final response = await httpClient.put(
@@ -119,7 +114,6 @@ class ApiaryRemoteDataSourceImpl implements ApiaryRemoteDataSource {
           if (name != null) 'name': name,
           if (location != null) 'location': location,
           if (beehivesCount != null) 'beehives_count': beehivesCount,
-          if (treatments != null) 'treatments': treatments,
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );

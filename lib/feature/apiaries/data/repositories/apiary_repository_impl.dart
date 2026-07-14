@@ -34,7 +34,6 @@ class ApiaryRepositoryImpl implements ApiaryRepository {
     String name,
     String? location,
     int? beehivesCount,
-    bool treatments,
   ) async {
     try {
       final token = await localDataSource.getToken();
@@ -47,7 +46,6 @@ class ApiaryRepositoryImpl implements ApiaryRepository {
         name,
         location,
         beehivesCount,
-        treatments,
       );
       return Right(result);
     } catch (e) {
@@ -62,7 +60,6 @@ class ApiaryRepositoryImpl implements ApiaryRepository {
     String? name,
     String? location,
     int? beehivesCount,
-    bool? treatments,
   ) async {
     try {
       final token = await localDataSource.getToken();
@@ -76,7 +73,6 @@ class ApiaryRepositoryImpl implements ApiaryRepository {
         name,
         location,
         beehivesCount,
-        treatments,
       );
       return Right(result);
     } catch (e) {

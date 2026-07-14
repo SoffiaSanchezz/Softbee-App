@@ -9,7 +9,6 @@ abstract class ApiaryRepository {
     String name,
     String? location,
     int? beehivesCount,
-    bool treatments,
   );
   Future<Either<Failure, Apiary>> updateApiary(
     String apiaryId,
@@ -17,7 +16,6 @@ abstract class ApiaryRepository {
     String? name,
     String? location,
     int? beehivesCount,
-    bool? treatments,
   );
   Future<Either<Failure, void>> deleteApiary(String apiaryId, String userId);
 }

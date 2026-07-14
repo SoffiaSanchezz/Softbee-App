@@ -161,7 +161,6 @@ class ApiariesController extends StateNotifier<ApiariesState> {
     String name,
     String? location,
     int? beehivesCount,
-    bool treatments,
   ) async {
     state = state.copyWith(
       isCreating: true,
@@ -182,7 +181,6 @@ class ApiariesController extends StateNotifier<ApiariesState> {
       name: name,
       location: location,
       beehivesCount: beehivesCount,
-      treatments: treatments,
     );
 
     final result = await createApiaryUseCase(params);
@@ -213,7 +211,6 @@ class ApiariesController extends StateNotifier<ApiariesState> {
     String? name,
     String? location,
     int? beehivesCount,
-    bool? treatments,
   ) async {
     state = state.copyWith(
       isUpdating: true,
@@ -235,7 +232,6 @@ class ApiariesController extends StateNotifier<ApiariesState> {
       name: name,
       location: location,
       beehivesCount: beehivesCount,
-      treatments: treatments,
     );
 
     final result = await updateApiaryUseCase(params);

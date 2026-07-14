@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class GeocodingService {
   final String _baseUrl = 'https://nominatim.openstreetmap.org/search';

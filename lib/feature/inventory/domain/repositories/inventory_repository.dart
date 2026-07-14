@@ -20,11 +20,14 @@ abstract class InventoryRepository {
     required String apiaryId,
   });
   Future<Either<Failure, InventoryItem?>> getInventoryItem(String itemId);
-  Future<Either<Failure, void>> recordInventoryExit({
+  Future<Either<Failure, void>> recordMovement({
     required String itemId,
+    required String type,
     required int quantity,
-    required String person,
+    required String reason,
+    String? notes,
   });
+  Future<Either<Failure, List<Map<String, dynamic>>>> getMovements(String itemId);
   Future<Either<Failure, Map<String, dynamic>>> getInventorySummary({
     required String apiaryId,
   });

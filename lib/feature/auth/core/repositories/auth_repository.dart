@@ -19,7 +19,6 @@ abstract class AuthRepository {
     String apiaryName,
     String location,
     int beehivesCount,
-    bool treatments,
     String token,
   );
 }

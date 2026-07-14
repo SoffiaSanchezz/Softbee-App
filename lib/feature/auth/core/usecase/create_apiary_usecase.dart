@@ -9,7 +9,6 @@ class CreateApiaryParams {
   final String apiaryName;
   final String location;
   final int beehivesCount;
-  final bool treatments;
   final String token;
 
   CreateApiaryParams({
@@ -17,7 +16,6 @@ class CreateApiaryParams {
     required this.apiaryName,
     required this.location,
     required this.beehivesCount,
-    required this.treatments,
     required this.token,
   });
 }
@@ -34,7 +32,6 @@ class CreateApiaryUseCase implements UseCase<void, CreateApiaryParams> {
       params.apiaryName,
       params.location,
       params.beehivesCount,
-      params.treatments,
       params.token,
     );
   }

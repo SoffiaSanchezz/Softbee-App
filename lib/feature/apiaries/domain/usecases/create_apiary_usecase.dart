@@ -9,14 +9,12 @@ class CreateApiaryParams {
   final String name;
   final String? location;
   final int? beehivesCount;
-  final bool treatments;
 
   CreateApiaryParams({
     required this.userId,
     required this.name,
     this.location,
     this.beehivesCount,
-    required this.treatments,
   });
 }
 
@@ -32,7 +30,6 @@ class CreateApiaryUseCase implements UseCase<Apiary, CreateApiaryParams> {
       params.name,
       params.location,
       params.beehivesCount,
-      params.treatments,
     );
   }
 }

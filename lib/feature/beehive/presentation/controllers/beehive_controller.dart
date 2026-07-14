@@ -102,6 +102,7 @@ class BeehiveController extends StateNotifier<BeehiveState> {
     String? healthStatus,
     String? hasProductionChamber,
     String? observations,
+    bool treatments,
   ) async {
     state = state.copyWith(
       isCreating: true,
@@ -119,6 +120,7 @@ class BeehiveController extends StateNotifier<BeehiveState> {
       healthStatus: healthStatus,
       hasProductionChamber: hasProductionChamber,
       observations: observations,
+      treatments: treatments,
     );
     final result = await createBeehiveUseCase(params);
     result.fold(
@@ -150,6 +152,7 @@ class BeehiveController extends StateNotifier<BeehiveState> {
     String? healthStatus,
     String? hasProductionChamber,
     String? observations,
+    bool? treatments,
   ) async {
     state = state.copyWith(
       isUpdating: true,
@@ -168,6 +171,7 @@ class BeehiveController extends StateNotifier<BeehiveState> {
       healthStatus: healthStatus,
       hasProductionChamber: hasProductionChamber,
       observations: observations,
+      treatments: treatments,
     );
     final result = await updateBeehiveUseCase(params);
     result.fold(

@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
 import '../../domain/entities/question_model.dart';
+import '../../domain/entities/hive_question.dart';
 
 abstract class QuestionRemoteDataSource {
   Future<List<Pregunta>> getPreguntas(String apiaryId, String token);
+  Future<List<HiveQuestion>> getHiveQuestions(String hiveId, String token);
   Future<Pregunta> createPregunta(Pregunta pregunta, String token);
   Future<Pregunta> updatePregunta(Pregunta pregunta, String token);
   Future<void> deletePregunta(String id, String token);
@@ -13,6 +15,13 @@ abstract class QuestionRemoteDataSource {
   );
   Future<void> loadDefaults(String apiaryId, String token);
   Future<List<Pregunta>> getTemplates(String token);
+  Future<HiveQuestion> assignQuestionToHive(
+    String hiveId,
+    String apiaryQuestionId,
+    int order,
+    String token,
+  );
+  Future<void> unassignQuestionFromHive(String hiveQuestionId, String token);
 }
 
 class QuestionRemoteDataSourceImpl implements QuestionRemoteDataSource {
@@ -41,6 +50,26 @@ class QuestionRemoteDataSourceImpl implements QuestionRemoteDataSource {
   }
 
   @override
+  Future<List<HiveQuestion>> getHiveQuestions(String hiveId, String token) async {
+    try {
+      final response = await httpClient.get(
+        '/api/v1/questions/hive/$hiveId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final List<dynamic> data = response.data as List<dynamic>;
+      return data
+          .map<HiveQuestion>(
+            (json) => HiveQuestion.fromJson(Map<String, dynamic>.from(json)),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data['message'] ?? 'Error obteniendo preguntas de colmena',
+      );
+    }
+  }
+
+  @override
   Future<List<Pregunta>> getTemplates(String token) async {
     try {
       final response = await httpClient.get(
@@ -49,39 +78,11 @@ class QuestionRemoteDataSourceImpl implements QuestionRemoteDataSource {
       );
       final List<dynamic> data = response.data as List<dynamic>;
 
-      final List<Pregunta> templates = [];
-      for (var json in data) {
-        try {
-          final Map<String, dynamic> mapped = Map<String, dynamic>.from(json);
-          templates.add(
-            Pregunta(
-              id: '', // No tiene ID real hasta crearse
-              apiarioId: '',
-              texto: mapped['pregunta'] ?? mapped['question_text'] ?? '',
-              tipoRespuesta:
-                  mapped['tipo'] ?? mapped['question_type'] ?? 'texto',
-              categoria: mapped['categoria'] ?? mapped['category'],
-              obligatoria:
-                  mapped['obligatoria'] ?? mapped['is_required'] ?? false,
-              opciones: mapped['opciones'] != null
-                  ? List<String>.from(mapped['opciones'])
-                  : (mapped['options'] != null
-                        ? List<String>.from(mapped['options'])
-                        : null),
-              min:
-                  (mapped['min'] as num?)?.toInt() ??
-                  (mapped['min_value'] as num?)?.toInt(),
-              max:
-                  (mapped['max'] as num?)?.toInt() ??
-                  (mapped['max_value'] as num?)?.toInt(),
-              orden: 0,
-            ),
-          );
-        } catch (e) {
-          print('Error mapeando plantilla individual: $e');
-        }
-      }
-      return templates;
+      return data
+          .map<Pregunta>(
+            (json) => Pregunta.fromJson(Map<String, dynamic>.from(json)),
+          )
+          .toList();
     } on DioException catch (e) {
       throw Exception(
         e.response?.data['message'] ?? 'Error obteniendo banco de preguntas',
@@ -162,6 +163,48 @@ class QuestionRemoteDataSourceImpl implements QuestionRemoteDataSource {
     } on DioException catch (e) {
       throw Exception(
         e.response?.data['message'] ?? 'Error reordenando preguntas',
+      );
+    }
+  }
+
+  @override
+  Future<HiveQuestion> assignQuestionToHive(
+    String hiveId,
+    String apiaryQuestionId,
+    int order,
+    String token,
+  ) async {
+    try {
+      final response = await httpClient.post(
+        '/api/v1/questions/hive',
+        data: {
+          'hive_id': hiveId,
+          'apiary_question_id': apiaryQuestionId,
+          'display_order': order,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return HiveQuestion.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data['message'] ?? 'Error asignando pregunta a colmena',
+      );
+    }
+  }
+
+  @override
+  Future<void> unassignQuestionFromHive(
+    String hiveQuestionId,
+    String token,
+  ) async {
+    try {
+      await httpClient.delete(
+        '/api/v1/questions/hive/$hiveQuestionId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data['message'] ?? 'Error desasignando pregunta',
       );
     }
   }

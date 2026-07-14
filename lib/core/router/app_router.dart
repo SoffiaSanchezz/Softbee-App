@@ -1,10 +1,12 @@
+import 'package:Softbee/feature/reports/presentation/pages/apiary_insights_page.dart';
 import 'package:Softbee/feature/monitoring/presentation/pages/questions_management_page.dart';
 import 'package:Softbee/feature/beehive/presentation/pages/beehive_management_page.dart';
 import 'package:Softbee/core/widgets/menu_info_apiario.dart';
 import 'package:Softbee/feature/monitoring/presentation/pages/monitoring_overview_page.dart';
+import 'package:Softbee/feature/maya/presentation/pages/maya_chat_page.dart';
+import 'package:Softbee/feature/monitoring/presentation/pages/maya_voice_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../../feature/auth/presentation/providers/auth_providers.dart';
@@ -19,6 +21,7 @@ import '../../feature/apiaries/presentation/pages/history_page.dart';
 import '../../feature/apiaries/presentation/pages/apiary_settings_page.dart';
 import '../widgets/dashboard_menu.dart';
 
+import '../../feature/treatments/presentation/pages/treatments_page.dart';
 import 'app_routes.dart';
 import '../../feature/auth/presentation/router/auth_routes.dart';
 
@@ -42,9 +45,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     refreshListenable: notifier,
-    initialLocation: kIsWeb
-        ? AppRoutes.landingRoute
-        : AppRoutes.loginRoute, // Lógica de detección de plataforma
+    initialLocation: AppRoutes.loginRoute, // Desactivado kIsWeb para pruebas
     routes: [
       GoRoute(
         path: AppRoutes.landingRoute, // Ruta para Landing Page
@@ -99,9 +100,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   final apiaryName =
                       state.uri.queryParameters['apiaryName'] ??
                       'Apiario'; // Get apiaryName
+                  final isSelectionMode = state.uri.queryParameters['isSelectionMode'] == 'true';
                   return ColmenasManagementScreen(
                     apiaryId: apiaryId,
                     apiaryName: apiaryName,
+                    isSelectionMode: isSelectionMode,
                   ); // Pass apiaryName
                 },
               ),
@@ -111,6 +114,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) {
                   final apiaryId = state.pathParameters['apiaryId']!;
                   return QuestionsManagementScreen(apiaryId: apiaryId);
+                },
+              ),
+              GoRoute(
+                path: 'maya',
+                name: AppRoutes.mayaChatRoute,
+                builder: (context, state) {
+                  final apiaryId = state.pathParameters['apiaryId']!;
+                  return MayaChatPage(apiaryId: apiaryId);
+                },
+              ),
+              GoRoute(
+                path: 'maya-voice',
+                name: AppRoutes.mayaVoiceRoute,
+                builder: (context, state) {
+                  final apiaryId = state.pathParameters['apiaryId']!;
+                  return MayaVoicePage(apiaryId: apiaryId);
                 },
               ),
 
@@ -151,6 +170,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final apiaryId = state.pathParameters['apiaryId'] as String;
               return ApiarySettingsPage(apiaryId: apiaryId);
+            },
+          ),
+          GoRoute(
+            path: 'insights',
+            name: AppRoutes.apiaryInsightsRoute,
+            builder: (context, state) {
+              final apiaryId = state.pathParameters['apiaryId'] as String;
+              final apiaryName = state.uri.queryParameters['apiaryName'] ?? 'Apiario';
+              return ApiaryInsightsPage(
+                apiaryId: apiaryId,
+                apiaryName: apiaryName,
+              );
+            },
+          ),
+          GoRoute(
+            path: 'treatments',
+            name: AppRoutes.treatmentsRoute,
+            builder: (context, state) {
+              final apiaryId = state.pathParameters['apiaryId'] as String;
+              return TreatmentsPage(apiaryId: apiaryId);
             },
           ),
         ],

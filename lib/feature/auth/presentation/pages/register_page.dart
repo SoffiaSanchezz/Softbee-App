@@ -1059,8 +1059,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         registerController.updateApiaryName(index, value),
                     onAddressChanged: (value) =>
                         registerController.updateApiaryAddress(index, value),
-                    onTreatmentsChanged: (value) =>
-                        registerController.updateApiaryTreatments(index, value),
                     showValidationErrors: registerState.showValidationErrors,
                   );
                 }),
@@ -1169,7 +1167,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     required bool showRemoveButton,
     required Function(String) onNameChanged,
     required Function(String) onAddressChanged,
-    required Function(bool) onTreatmentsChanged,
     required bool showValidationErrors,
   }) {
     return ApiaryCard(
@@ -1179,7 +1176,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       showRemoveButton: showRemoveButton,
       onNameChanged: onNameChanged,
       onAddressChanged: onAddressChanged,
-      onTreatmentsChanged: onTreatmentsChanged,
       showValidationErrors: showValidationErrors,
     );
   }
@@ -1192,7 +1188,6 @@ class ApiaryCard extends ConsumerStatefulWidget {
   final bool showRemoveButton;
   final Function(String) onNameChanged;
   final Function(String) onAddressChanged;
-  final Function(bool) onTreatmentsChanged;
   final bool showValidationErrors;
 
   const ApiaryCard({
@@ -1203,7 +1198,6 @@ class ApiaryCard extends ConsumerStatefulWidget {
     required this.showRemoveButton,
     required this.onNameChanged,
     required this.onAddressChanged,
-    required this.onTreatmentsChanged,
     required this.showValidationErrors,
   });
 
@@ -1342,15 +1336,6 @@ class _ApiaryCardState extends ConsumerState<ApiaryCard> {
                   onChanged: (value) {
                     /* Handled by listener */
                   },
-                ),
-                const SizedBox(height: 16),
-                _buildTreatmentSwitch(
-                  value: widget.apiary.appliesTreatments,
-                  onChanged: widget.onTreatmentsChanged,
-                  title:
-                      '¿Aplicas tratamientos cuando las abejas están enfermas?',
-                  subtitle:
-                      'Indica si utilizas medicamentos o tratamientos veterinarios',
                 ),
               ],
             ),
@@ -1494,56 +1479,6 @@ class _ApiaryCardState extends ConsumerState<ApiaryCard> {
             ),
           ),
       ],
-    );
-  }
-
-  Widget _buildTreatmentSwitch({
-    required bool value,
-    required Function(bool) onChanged,
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.primaryYellow.withOpacity(0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: SwitchListTile(
-        title: Text(
-          title,
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: AppColors.textDark,
-            fontSize: 14,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: GoogleFonts.poppins(
-            color: AppColors.textDark.withOpacity(0.7),
-            fontSize: 12,
-          ),
-        ),
-        value: value,
-        onChanged: onChanged,
-        activeThumbColor: AppColors.primaryYellow,
-        activeTrackColor: AppColors.primaryYellow.withOpacity(0.3),
-        inactiveThumbColor: Colors.grey,
-        inactiveTrackColor: Colors.grey.withOpacity(0.3),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
     );
   }
 }

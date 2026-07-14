@@ -10,7 +10,6 @@ class UpdateApiaryParams {
   final String? name;
   final String? location;
   final int? beehivesCount;
-  final bool? treatments;
 
   UpdateApiaryParams({
     required this.apiaryId,
@@ -18,7 +17,6 @@ class UpdateApiaryParams {
     this.name,
     this.location,
     this.beehivesCount,
-    this.treatments,
   });
 }
 
@@ -35,7 +33,6 @@ class UpdateApiaryUseCase implements UseCase<Apiary, UpdateApiaryParams> {
       params.name,
       params.location,
       params.beehivesCount,
-      params.treatments,
     );
   }
 }

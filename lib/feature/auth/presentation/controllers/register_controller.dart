@@ -220,12 +220,6 @@ class RegisterController extends StateNotifier<RegisterState> {
     state = state.copyWith(apiaries: currentApiaries);
   }
 
-  void updateApiaryTreatments(int index, bool value) {
-    final newApiaries = List<RegisterApiaryData>.from(state.apiaries);
-    newApiaries[index] = newApiaries[index].copyWith(appliesTreatments: value);
-    state = state.copyWith(apiaries: newApiaries);
-  }
-
   String _cleanPhone(String phone) {
     return phone.replaceAll(RegExp(r'[^\d]'), '');
   }
@@ -281,7 +275,6 @@ class RegisterController extends StateNotifier<RegisterState> {
           apiaryName: apiaryData.name,
           location: location,
           beehivesCount: 0,
-          treatments: apiaryData.appliesTreatments,
           token: token,
         );
 
