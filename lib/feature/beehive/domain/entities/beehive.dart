@@ -37,23 +37,29 @@ class Beehive extends Equatable {
     return Beehive(
       id: (json['id'] ?? json['beehive_id'] ?? '').toString(),
       apiaryId: (json['apiary_id'] ?? '').toString(),
-      beehiveNumber: json['hive_number'] ?? json['beehive_number'],
-      activityLevel: json['activity_level'],
-      beePopulation: json['bee_population'],
-      foodFrames: json['food_frames'],
-      broodFrames: json['brood_frames'],
-      hiveStatus: json['hive_status'],
-      healthStatus: json['health_status'],
-      hasProductionChamber: json['has_production_chamber'],
-      observations: json['observations'],
-      treatments: json['treatments'] ?? false,
+      beehiveNumber: _parseInt(json['hive_number'] ?? json['beehive_number']),
+      activityLevel: json['activity_level']?.toString(),
+      beePopulation: json['bee_population']?.toString(),
+      foodFrames: _parseInt(json['food_frames']),
+      broodFrames: _parseInt(json['brood_frames']),
+      hiveStatus: json['hive_status']?.toString(),
+      healthStatus: json['health_status']?.toString(),
+      hasProductionChamber: json['has_production_chamber']?.toString(),
+      observations: json['observations']?.toString(),
+      treatments: json['treatments'] == true || json['treatments'] == 'true',
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
+          ? DateTime.tryParse(json['created_at'].toString())
           : null,
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'])
+          ? DateTime.tryParse(json['updated_at'].toString())
           : null,
     );
+  }
+
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    return int.tryParse(value.toString());
   }
 
   Map<String, dynamic> toJson() {
