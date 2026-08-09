@@ -1,9 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'core/router/app_router.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _requestMicrophonePermission();
   runApp(const ProviderScope(child: MyApp()));
+}
+
+Future<void> _requestMicrophonePermission() async {
+  final status = await Permission.microphone.status;
+
+  if (status.isDenied) {
+    await Permission.microphone.request();
+  } else if (status.isPermanentlyDenied) {
+    await openAppSettings();
+  }
 }
 
 class MyApp extends ConsumerWidget {
