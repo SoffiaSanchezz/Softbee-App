@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:Softbee/feature/auth/data/datasources/auth_local_datasource.dart';
 import 'package:Softbee/feature/beehive/domain/entities/beehive.dart';
@@ -54,23 +55,34 @@ class BeehiveRemoteDataSourceImpl implements BeehiveRemoteDataSource {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> beehivesJson = response.data;
-        return beehivesJson.map((json) => Beehive.fromJson(json)).toList();
+        final List<dynamic> beehivesJson = response.data is String
+            ? json.decode(response.data) as List<dynamic>
+            : response.data as List<dynamic>;
+        return beehivesJson
+            .map((item) => Beehive.fromJson(item as Map<String, dynamic>))
+            .toList();
       } else {
+        final data = response.data is String
+            ? json.decode(response.data)
+            : response.data;
         throw Exception(
-          response.data['message'] ?? 'Error al obtener colmenas',
+          data['message'] ?? 'Error al obtener colmenas',
         );
       }
     } on DioException catch (e) {
       if (e.response != null) {
+        final errData = e.response!.data is String
+            ? json.decode(e.response!.data)
+            : e.response!.data;
         throw Exception(
-          e.response!.data['message'] ??
+          errData['message'] ??
               'Error de red: ${e.response!.statusCode}',
         );
       } else {
         throw Exception('Error de conexión: ${e.message}');
       }
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Error inesperado: $e');
     }
   }
@@ -110,22 +122,32 @@ class BeehiveRemoteDataSourceImpl implements BeehiveRemoteDataSource {
       );
 
       if (response.statusCode == 201) {
-        return Beehive.fromJson(response.data);
+        final Map<String, dynamic> data = response.data is String
+            ? json.decode(response.data) as Map<String, dynamic>
+            : response.data as Map<String, dynamic>;
+        return Beehive.fromJson(data);
       } else {
+        final data = response.data is String
+            ? json.decode(response.data)
+            : response.data;
         throw Exception(
-          response.data['message'] ?? 'Error al crear la colmena',
+          data['message'] ?? 'Error al crear la colmena',
         );
       }
     } on DioException catch (e) {
       if (e.response != null) {
+        final errData = e.response!.data is String
+            ? json.decode(e.response!.data)
+            : e.response!.data;
         throw Exception(
-          e.response!.data['message'] ??
+          errData['message'] ??
               'Error de red: ${e.response!.statusCode}',
         );
       } else {
         throw Exception('Error de conexión: ${e.message}');
       }
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Error inesperado: $e');
     }
   }
@@ -150,7 +172,7 @@ class BeehiveRemoteDataSourceImpl implements BeehiveRemoteDataSource {
       final response = await httpClient.put(
         '/api/v1/beehives/$beehiveId',
         data: {
-          'apiary_id': apiaryId, // Required by backend for context
+          'apiary_id': apiaryId,
           if (beehiveNumber != null) 'hive_number': beehiveNumber,
           if (activityLevel != null) 'activity_level': activityLevel,
           if (beePopulation != null) 'bee_population': beePopulation,
@@ -167,22 +189,32 @@ class BeehiveRemoteDataSourceImpl implements BeehiveRemoteDataSource {
       );
 
       if (response.statusCode == 200) {
-        return Beehive.fromJson(response.data);
+        final Map<String, dynamic> data = response.data is String
+            ? json.decode(response.data) as Map<String, dynamic>
+            : response.data as Map<String, dynamic>;
+        return Beehive.fromJson(data);
       } else {
+        final data = response.data is String
+            ? json.decode(response.data)
+            : response.data;
         throw Exception(
-          response.data['message'] ?? 'Error al actualizar la colmena',
+          data['message'] ?? 'Error al actualizar la colmena',
         );
       }
     } on DioException catch (e) {
       if (e.response != null) {
+        final errData = e.response!.data is String
+            ? json.decode(e.response!.data)
+            : e.response!.data;
         throw Exception(
-          e.response!.data['message'] ??
+          errData['message'] ??
               'Error de red: ${e.response!.statusCode}',
         );
       } else {
         throw Exception('Error de conexión: ${e.message}');
       }
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Error inesperado: $e');
     }
   }
@@ -190,33 +222,38 @@ class BeehiveRemoteDataSourceImpl implements BeehiveRemoteDataSource {
   @override
   Future<void> deleteBeehive(
     String beehiveId,
-    String apiaryId, // Pass apiaryId for backend check
+    String apiaryId,
     String token,
   ) async {
     try {
       final response = await httpClient.delete(
         '/api/v1/beehives/$beehiveId',
-        data: {
-          'apiary_id': apiaryId,
-        }, // Send apiary_id in body for authorization
+        data: {'apiary_id': apiaryId},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       if (response.statusCode != 204) {
+        final data = response.data is String
+            ? json.decode(response.data)
+            : response.data;
         throw Exception(
-          response.data['message'] ?? 'Error al eliminar la colmena',
+          data['message'] ?? 'Error al eliminar la colmena',
         );
       }
     } on DioException catch (e) {
       if (e.response != null) {
+        final errData = e.response!.data is String
+            ? json.decode(e.response!.data)
+            : e.response!.data;
         throw Exception(
-          e.response!.data['message'] ??
+          errData['message'] ??
               'Error de red: ${e.response!.statusCode}',
         );
       } else {
         throw Exception('Error de conexión: ${e.message}');
       }
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Error inesperado: $e');
     }
   }
