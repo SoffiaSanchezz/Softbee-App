@@ -24,12 +24,25 @@ class Apiary {
       name: json['name'],
       location: json['location'],
       beehivesCount: json['beehives_count'],
-      createdAt: json['created_at'] != null
-          ? DateFormat(
-              "EEE, dd MMM yyyy HH:mm:ss 'GMT'",
-            ).parse(json['created_at'])
-          : null,
+      createdAt: _parseDate(json['created_at']),
     );
+  }
+
+  /// Parsea la fecha soportando tanto el formato del servidor (RFC 2822)
+  /// como el formato ISO 8601 usado en el cache local.
+  static DateTime? _parseDate(String? dateStr) {
+    if (dateStr == null) return null;
+    try {
+      // Intentar formato del servidor: "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+      return DateFormat("EEE, dd MMM yyyy HH:mm:ss 'GMT'").parse(dateStr);
+    } catch (_) {
+      try {
+        // Intentar formato ISO 8601 (usado en cache local)
+        return DateTime.parse(dateStr);
+      } catch (_) {
+        return null;
+      }
+    }
   }
 
   Map<String, dynamic> toJson() {

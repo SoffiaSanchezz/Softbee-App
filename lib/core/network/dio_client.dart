@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final dioClientProvider = Provider<Dio>((ref) {
-  const baseUrl = 'https://argument-exempt-textile-graphs.trycloudflare.com';
+  const baseUrl = 'https://announced-guidelines-whale-ash.trycloudflare.com/';
 
   final BaseOptions options = BaseOptions(
     baseUrl: baseUrl,
