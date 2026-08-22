@@ -35,6 +35,16 @@ class _HiveTreatmentsManagementDialogState extends ConsumerState<HiveTreatmentsM
   Widget build(BuildContext context) {
     final state = ref.watch(treatmentsControllerProvider);
 
+    // Dimensiones responsive del modal para evitar overflow horizontal
+    // en móvil. En escritorio se conserva el tamaño fijo original.
+    final Size screenSize = MediaQuery.of(context).size;
+    final bool isMobile = screenSize.width < 600;
+    final double horizontalInset = isMobile ? 12 : 40;
+    final double dialogWidth =
+        isMobile ? screenSize.width - (horizontalInset * 2) : 650;
+    final double dialogHeight =
+        isMobile ? screenSize.height * 0.75 : 600;
+
     ref.listen(treatmentsControllerProvider, (previous, next) {
       if (next.successMessage != null && previous?.successMessage != next.successMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -63,11 +73,14 @@ class _HiveTreatmentsManagementDialogState extends ConsumerState<HiveTreatmentsM
 
     return AlertDialog(
       backgroundColor: Colors.white,
+      insetPadding:
+          EdgeInsets.symmetric(horizontal: horizontalInset, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       titlePadding: EdgeInsets.zero,
       contentPadding: EdgeInsets.zero,
       title: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 18 : 24, vertical: isMobile ? 16 : 20),
         decoration: BoxDecoration(
           color: Colors.amber.shade600,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -75,7 +88,8 @@ class _HiveTreatmentsManagementDialogState extends ConsumerState<HiveTreatmentsM
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
+            Expanded(
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -94,6 +108,7 @@ class _HiveTreatmentsManagementDialogState extends ConsumerState<HiveTreatmentsM
                   ),
                 ),
               ],
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.add_circle_rounded, color: Colors.white, size: 32),
@@ -104,14 +119,14 @@ class _HiveTreatmentsManagementDialogState extends ConsumerState<HiveTreatmentsM
         ),
       ),
       content: Container(
-        width: 650,
-        height: 600,
-        padding: const EdgeInsets.all(16),
+        width: dialogWidth,
+        height: dialogHeight,
+        padding: EdgeInsets.all(isMobile ? 12 : 16),
         child: state.isLoading
             ? const Center(child: CircularProgressIndicator())
             : state.treatments.isEmpty
                 ? _buildEmptyState()
-                : _buildTreatmentsList(state.treatments),
+                : _buildTreatmentsList(state.treatments, isMobile),
       ),
       actions: [
         TextButton(
@@ -148,7 +163,7 @@ class _HiveTreatmentsManagementDialogState extends ConsumerState<HiveTreatmentsM
     ).animate().fadeIn(delay: 200.ms);
   }
 
-  Widget _buildTreatmentsList(List<Treatment> treatments) {
+  Widget _buildTreatmentsList(List<Treatment> treatments, bool isMobile) {
     return ListView.builder(
       itemCount: treatments.length,
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -208,25 +223,7 @@ class _HiveTreatmentsManagementDialogState extends ConsumerState<HiveTreatmentsM
                         child: Divider(),
                       ),
                       
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Historial de Seguimientos', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
-                          ElevatedButton.icon(
-                            onPressed: () => _showAddFollowup(treatment.id, treatment.productName),
-                            icon: const Icon(Icons.add, size: 16),
-                            label: const Text('Seguimiento'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green.shade600,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              textStyle: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                        ],
-                      ),
+                      _buildFollowupsHeader(treatment, isMobile),
                       const SizedBox(height: 12),
                       if (treatment.followups.isEmpty)
                         Center(
@@ -248,6 +245,51 @@ class _HiveTreatmentsManagementDialogState extends ConsumerState<HiveTreatmentsM
     );
   }
 
+  // Encabezado del historial de seguimientos.
+  // En móvil el botón se coloca DEBAJO del título, a ancho completo, para
+  // evitar que se corte o se superponga con el texto. En escritorio se
+  // mantiene la distribución original (título e botón en la misma fila).
+  Widget _buildFollowupsHeader(Treatment treatment, bool isMobile) {
+    final Widget title = Text(
+      'Historial de Seguimientos',
+      style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
+    );
+
+    final Widget button = ElevatedButton.icon(
+      onPressed: () => _showAddFollowup(treatment.id, treatment.productName),
+      icon: const Icon(Icons.add, size: 16),
+      label: const Text('Seguimiento'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.green.shade600,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        textStyle: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          title,
+          const SizedBox(height: 10),
+          button,
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Flexible(child: title),
+        const SizedBox(width: 8),
+        button,
+      ],
+    );
+  }
+
   Widget _buildDetailItem(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -256,7 +298,9 @@ class _HiveTreatmentsManagementDialogState extends ConsumerState<HiveTreatmentsM
           Icon(icon, size: 16, color: Colors.grey.shade600),
           const SizedBox(width: 8),
           Text('$label: ', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
-          Text(value, style: GoogleFonts.poppins(fontSize: 13, color: Colors.black87)),
+          Expanded(
+            child: Text(value, style: GoogleFonts.poppins(fontSize: 13, color: Colors.black87)),
+          ),
         ],
       ),
     );
