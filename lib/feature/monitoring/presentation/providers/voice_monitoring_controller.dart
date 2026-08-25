@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'voice_monitoring_state.dart';
 import '../../domain/entities/hive_answer.dart';
 import '../../domain/entities/hive_question.dart';
@@ -125,6 +126,22 @@ class VoiceMonitoringController extends StateNotifier<VoiceMonitoringState> {
 
   Future<void> initMonitoring(String apiaryId) async {
     if (_isDisposed) return;
+
+    // Solicitar permiso de micrófono antes de iniciar el flujo de voz
+    if (!kIsWeb) {
+      var micStatus = await Permission.microphone.status;
+      if (micStatus.isDenied) {
+        micStatus = await Permission.microphone.request();
+      }
+      if (!micStatus.isGranted) {
+        state = state.copyWith(
+          step: MonitoringStep.error,
+          errorMessage: 'Se necesita permiso de micrófono para usar Maya Voz.',
+        );
+        return;
+      }
+    }
+
     state = state.copyWith(
       step: MonitoringStep.initial,
       availableHives: const [],

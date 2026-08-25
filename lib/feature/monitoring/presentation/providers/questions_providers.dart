@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../apiaries/presentation/providers/apiary_providers.dart';
+import '../../data/datasources/question_local_datasource.dart';
 import '../../data/datasources/question_remote_datasource.dart';
 import '../../data/repositories/question_repository_impl.dart';
 import '../../domain/entities/question_model.dart';
@@ -17,10 +19,16 @@ final questionRemoteDataSourceProvider = Provider<QuestionRemoteDataSource>((
   return QuestionRemoteDataSourceImpl(ref.read(dioClientProvider));
 });
 
+final questionLocalDataSourceProvider = Provider<QuestionLocalDataSource>((ref) {
+  return QuestionLocalDataSourceImpl();
+});
+
 final questionRepositoryProvider = Provider<QuestionRepository>((ref) {
   return QuestionRepositoryImpl(
     remoteDataSource: ref.read(questionRemoteDataSourceProvider),
     localDataSource: ref.read(authLocalDataSourceProvider),
+    questionLocalDataSource: ref.read(questionLocalDataSourceProvider),
+    networkInfo: ref.read(networkInfoProvider),
   );
 });
 

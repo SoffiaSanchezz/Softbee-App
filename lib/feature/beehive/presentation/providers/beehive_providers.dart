@@ -1,5 +1,7 @@
 import 'package:Softbee/core/network/dio_client.dart';
 import 'package:Softbee/feature/auth/presentation/providers/auth_providers.dart';
+import 'package:Softbee/feature/apiaries/presentation/providers/apiary_providers.dart';
+import 'package:Softbee/feature/beehive/data/datasources/beehive_local_datasource.dart';
 import 'package:Softbee/feature/beehive/data/datasources/beehive_remote_datasource.dart';
 import 'package:Softbee/feature/beehive/data/repositories/beehive_repository_impl.dart';
 import 'package:Softbee/feature/beehive/domain/repositories/beehive_repository.dart';
@@ -18,10 +20,16 @@ final beehiveRemoteDataSourceProvider = Provider<BeehiveRemoteDataSource>((
   return BeehiveRemoteDataSourceImpl(dio, localDataSource);
 });
 
+final beehiveLocalDataSourceProvider = Provider<BeehiveLocalDataSource>((ref) {
+  return BeehiveLocalDataSourceImpl();
+});
+
 final beehiveRepositoryProvider = Provider<BeehiveRepository>((ref) {
   return BeehiveRepositoryImpl(
     remoteDataSource: ref.read(beehiveRemoteDataSourceProvider),
     localDataSource: ref.read(authLocalDataSourceProvider),
+    beehiveLocalDataSource: ref.read(beehiveLocalDataSourceProvider),
+    networkInfo: ref.read(networkInfoProvider),
   );
 });
 
