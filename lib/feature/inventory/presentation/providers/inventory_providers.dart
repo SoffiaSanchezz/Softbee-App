@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:Softbee/core/sync/sync_providers.dart';
 import 'package:Softbee/feature/inventory/data/datasources/inventory_local_datasource.dart';
 import 'package:Softbee/feature/inventory/data/datasources/inventory_remote_datasource.dart';
 import 'package:Softbee/feature/inventory/data/repositories/inventory_repository_impl.dart';
+import 'package:Softbee/feature/inventory/data/sync/inventory_sync_handler.dart';
 import 'package:Softbee/feature/inventory/domain/repositories/inventory_repository.dart';
 import 'package:Softbee/feature/inventory/presentation/providers/inventory_controller.dart';
 import 'package:Softbee/feature/inventory/presentation/providers/inventory_state.dart';
@@ -22,6 +24,15 @@ final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
     localDataSource: localDataSource,
     inventoryLocalDataSource: ref.read(inventoryLocalDataSourceProvider),
     networkInfo: ref.read(networkInfoProvider),
+    syncQueue: ref.read(syncQueueProvider),
+  );
+});
+
+/// Handler de sincronización de inventario, registrado en el SyncService.
+final inventorySyncHandlerProvider = Provider<InventorySyncHandler>((ref) {
+  return InventorySyncHandler(
+    remoteDataSource: ref.read(inventoryRemoteDataSourceProvider),
+    localDataSource: ref.read(inventoryLocalDataSourceProvider),
   );
 });
 

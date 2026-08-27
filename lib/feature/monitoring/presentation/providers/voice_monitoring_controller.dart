@@ -13,13 +13,12 @@ import '../../domain/repositories/answer_repository.dart';
 import '../../../beehive/domain/repositories/beehive_repository.dart';
 import '../../../beehive/domain/entities/beehive.dart';
 import '../../../../core/services/offline_storage_service.dart';
+import '../../../../core/services/offline_storage_provider.dart';
 import 'questions_providers.dart';
 import '../../../beehive/presentation/providers/beehive_providers.dart';
 import '../../../maya/domain/repositories/maya_repository.dart';
 import '../../../maya/presentation/providers/maya_providers.dart';
 import '../../domain/entities/question_model.dart';
-
-final offlineStorageServiceProvider = Provider((ref) => OfflineStorageService());
 
 final voiceMonitoringControllerProvider =
     StateNotifierProvider.autoDispose<VoiceMonitoringController, VoiceMonitoringState>((ref) {
@@ -537,14 +536,45 @@ class VoiceMonitoringController extends StateNotifier<VoiceMonitoringState> {
         return;
       }
       if (!_isDisposed) state = state.copyWith(hasOfflineData: true);
+
+      bool allSynced = true;
       for (final data in offlineData) {
-        final hiveId = data['hive_id'];
-        final List<Map<String, dynamic>> respuestas = List<Map<String, dynamic>>.from(data['respuestas']);
-        await mayaRepo.guardarRespuestasVoz(hiveId, respuestas);
+        final hiveId = data['hive_id']?.toString();
+        // La clave guardada por _saveAllAnswers es 'answers' (con fallback a 'respuestas')
+        final rawList = data['answers'] ?? data['respuestas'];
+        if (hiveId == null || rawList == null) {
+          debugPrint("Maya Voz Sync: registro offline inválido, se omite: $data");
+          continue;
+        }
+
+        final List<Map<String, dynamic>> respuestas =
+            List<Map<String, dynamic>>.from(rawList);
+
+        final result = await mayaRepo.guardarRespuestasVoz(hiveId, respuestas);
+        result.fold(
+          (failure) {
+            allSynced = false;
+            debugPrint("Maya Voz Sync: falló el envío de respuestas: ${failure.message}");
+          },
+          (_) {
+            debugPrint("Maya Voz Sync: respuestas de colmena $hiveId enviadas.");
+          },
+        );
+
+        // Si una falla, detenemos para reintentar en la próxima oportunidad
+        if (!allSynced) break;
       }
-      await offlineStorage.clearOfflineAnswers();
-      if (!_isDisposed) state = state.copyWith(hasOfflineData: false, isOffline: false);
-    } catch (_) {
+
+      // Solo limpiamos la cola si TODO se sincronizó correctamente
+      if (allSynced) {
+        await offlineStorage.clearOfflineAnswers();
+        if (!_isDisposed) state = state.copyWith(hasOfflineData: false, isOffline: false);
+        debugPrint("Maya Voz Sync: sincronización completa, cola vaciada.");
+      } else {
+        if (!_isDisposed) state = state.copyWith(hasOfflineData: true);
+      }
+    } catch (e) {
+      debugPrint("Maya Voz Sync: error inesperado: $e");
       if (!_isDisposed) state = state.copyWith(hasOfflineData: true);
     }
   }

@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final dioClientProvider = Provider<Dio>((ref) {
-  const baseUrl = 'https://cable-podcasts-resist-comparison.trycloudflare.com/';
+  const baseUrl = 'https://strike-queue-oldest-drink.trycloudflare.com/';
 
   final BaseOptions options = BaseOptions(
     baseUrl: baseUrl,
