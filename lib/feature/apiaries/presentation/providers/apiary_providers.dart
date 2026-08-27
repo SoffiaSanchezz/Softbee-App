@@ -14,6 +14,7 @@ import 'package:Softbee/feature/apiaries/presentation/controllers/apiaries_contr
 import 'package:Softbee/feature/auth/presentation/providers/auth_providers.dart';
 import 'package:Softbee/feature/beehive/presentation/providers/beehive_providers.dart';
 import 'package:Softbee/feature/inventory/presentation/providers/inventory_providers.dart';
+import 'package:Softbee/feature/monitoring/presentation/providers/questions_providers.dart';
 import 'package:Softbee/feature/maya/presentation/providers/maya_providers.dart';
 import 'package:Softbee/core/services/offline_storage_provider.dart';
 import 'package:Softbee/core/sync/entity_sync_handler.dart';
@@ -51,6 +52,7 @@ final apiaryRepositoryProvider = Provider<ApiaryRepository>((ref) {
 final syncHandlersProvider = Provider<List<EntitySyncHandler>>((ref) {
   return [
     ref.read(inventorySyncHandlerProvider),
+    ref.read(questionSyncHandlerProvider),
   ];
 });
 

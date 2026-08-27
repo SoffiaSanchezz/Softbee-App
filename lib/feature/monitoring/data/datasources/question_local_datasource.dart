@@ -8,6 +8,12 @@ abstract class QuestionLocalDataSource {
   Future<void> cachePreguntas(String apiaryId, List<Pregunta> preguntas);
   Future<List<Pregunta>> getCachedPreguntas(String apiaryId);
 
+  // CRUD local de preguntas del apiario (para operar offline)
+  Future<void> savePregunta(String apiaryId, Pregunta pregunta);
+  Future<void> updateLocalPregunta(String apiaryId, Pregunta pregunta);
+  Future<void> deleteLocalPregunta(String apiaryId, String preguntaId);
+  Future<void> replacePreguntaId(String apiaryId, String tempId, Pregunta real);
+
   // Preguntas asignadas a colmenas
   Future<void> cacheHiveQuestions(String hiveId, List<HiveQuestion> questions);
   Future<List<HiveQuestion>> getCachedHiveQuestions(String hiveId);
@@ -51,6 +57,48 @@ class QuestionLocalDataSourceImpl implements QuestionLocalDataSource {
           .toList();
     }
     return [];
+  }
+
+  // ===================== CRUD LOCAL DE PREGUNTAS =====================
+
+  @override
+  Future<void> savePregunta(String apiaryId, Pregunta pregunta) async {
+    final preguntas = await getCachedPreguntas(apiaryId);
+    preguntas.add(pregunta);
+    await cachePreguntas(apiaryId, preguntas);
+  }
+
+  @override
+  Future<void> updateLocalPregunta(String apiaryId, Pregunta pregunta) async {
+    final preguntas = await getCachedPreguntas(apiaryId);
+    final index = preguntas.indexWhere((p) => p.id == pregunta.id);
+    if (index != -1) {
+      preguntas[index] = pregunta;
+    } else {
+      preguntas.add(pregunta);
+    }
+    await cachePreguntas(apiaryId, preguntas);
+  }
+
+  @override
+  Future<void> deleteLocalPregunta(String apiaryId, String preguntaId) async {
+    final preguntas = await getCachedPreguntas(apiaryId);
+    preguntas.removeWhere((p) => p.id == preguntaId);
+    await cachePreguntas(apiaryId, preguntas);
+  }
+
+  @override
+  Future<void> replacePreguntaId(
+    String apiaryId,
+    String tempId,
+    Pregunta real,
+  ) async {
+    final preguntas = await getCachedPreguntas(apiaryId);
+    final index = preguntas.indexWhere((p) => p.id == tempId);
+    if (index != -1) {
+      preguntas[index] = real;
+      await cachePreguntas(apiaryId, preguntas);
+    }
   }
 
   // ===================== PREGUNTAS DE COLMENA =====================
