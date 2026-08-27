@@ -1,4 +1,5 @@
 import 'package:either_dart/either.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/services/offline_storage_service.dart';
 import '../../../auth/data/datasources/auth_local_datasource.dart';
@@ -50,6 +51,11 @@ class MayaRepositoryImpl implements MayaRepository {
     // devolvemos las preguntas cacheadas para que Maya complete el trazado.
     try {
       final token = await localDataSource.getToken();
+
+      // LOG DIAGNÓSTICO DEL TOKEN
+      debugPrint("[Maya][iniciar-monitoreo] hive_id=$hiveId");
+      debugPrint("[Maya][iniciar-monitoreo] token -> ${_describeToken(token)}");
+
       final result = await remoteDataSource.iniciarMonitoreoVoz(hiveId, token ?? '');
 
       // Guardar el contexto de monitoreo (preguntas) para uso offline.
@@ -57,13 +63,26 @@ class MayaRepositoryImpl implements MayaRepository {
 
       return Right(result);
     } catch (e) {
+      debugPrint("[Maya][iniciar-monitoreo] ERROR: $e");
       // Fallback al cache: si hay preguntas precargadas, Maya sigue offline.
       final cached = await offlineStorage.getCachedHiveMonitoring(hiveId);
       if (cached != null) {
+        debugPrint("[Maya][iniciar-monitoreo] usando preguntas cacheadas offline.");
         return Right(cached);
       }
       return Left(ServerFailure(e.toString()));
     }
+  }
+
+  /// Describe el token para diagnóstico sin volcar el JWT completo en logs.
+  String _describeToken(String? token) {
+    if (token == null) return 'NULL (no hay token guardado)';
+    if (token.isEmpty) return 'VACÍO (string de longitud 0)';
+    final length = token.length;
+    final preview = length <= 12
+        ? token
+        : '${token.substring(0, 6)}...${token.substring(length - 4)}';
+    return 'len=$length, preview=$preview';
   }
 
   @override
@@ -81,9 +100,15 @@ class MayaRepositoryImpl implements MayaRepository {
   Future<Either<Failure, void>> guardarRespuestasVoz(String hiveId, List<Map<String, dynamic>> respuestas) async {
     try {
       final token = await localDataSource.getToken();
+
+      // LOG DIAGNÓSTICO DEL TOKEN
+      debugPrint("[Maya][guardar-respuestas] hive_id=$hiveId, respuestas=${respuestas.length}");
+      debugPrint("[Maya][guardar-respuestas] token -> ${_describeToken(token)}");
+
       await remoteDataSource.guardarRespuestasVoz(hiveId, respuestas, token ?? '');
       return const Right(null);
     } catch (e) {
+      debugPrint("[Maya][guardar-respuestas] ERROR: $e");
       return Left(ServerFailure(e.toString()));
     }
   }
