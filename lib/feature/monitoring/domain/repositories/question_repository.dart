@@ -8,7 +8,7 @@ abstract class QuestionRepository {
   Future<Either<Failure, List<HiveQuestion>>> getHiveQuestions(String hiveId);
   Future<Either<Failure, Pregunta>> createPregunta(Pregunta pregunta);
   Future<Either<Failure, Pregunta>> updatePregunta(Pregunta pregunta);
-  Future<Either<Failure, void>> deletePregunta(String id);
+  Future<Either<Failure, void>> deletePregunta(String id, {String? apiaryId});
   Future<Either<Failure, void>> reorderPreguntas(
     String apiaryId,
     List<String> order,

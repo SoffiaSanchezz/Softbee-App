@@ -165,10 +165,23 @@ class VoiceMonitoringController extends StateNotifier<VoiceMonitoringState> {
           _speak("No tienes colmenas en este apiario. Crea una primero.");
           state = state.copyWith(step: MonitoringStep.finished);
         } else {
+          // Precargar en segundo plano las preguntas de todas las colmenas
+          // para que Maya pueda hacer el trazado completo si luego se pierde
+          // la señal. Best-effort: no bloquea el saludo.
+          _precacheHiveQuestions(hives);
           _startGreeting();
         }
       },
     );
+  }
+
+  /// Precarga (best-effort) las preguntas de monitoreo de cada colmena mientras
+  /// haya conexión, para que estén disponibles offline durante la revisión.
+  void _precacheHiveQuestions(List<Beehive> hives) {
+    for (final hive in hives) {
+      if (hive.id.isEmpty || hive.id.startsWith('temp_')) continue;
+      unawaited(mayaRepo.precacheHiveMonitoring(hive.id));
+    }
   }
 
   void _startGreeting() {
@@ -318,8 +331,13 @@ class VoiceMonitoringController extends StateNotifier<VoiceMonitoringState> {
             errorMessage: "Error al obtener preguntas"
           );
 
-          // MENSAJE DE VOZ SOLICITADO
-          _speak("Hubo un problema al obtener las preguntas. Por favor intenta nuevamente.");
+          // Sin conexión y sin preguntas precargadas para esta colmena: se
+          // avisa que deben cargarse con señal antes de ir al campo.
+          _speak(
+            "No pude obtener las preguntas de esta colmena. Si estás sin conexión, "
+            "abre esta colmena con internet al menos una vez para descargarlas. "
+            "¿Deseas monitorear otra colmena?",
+          );
           
           state = state.copyWith(step: MonitoringStep.askContinuation);
         }

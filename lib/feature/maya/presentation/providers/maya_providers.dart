@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/offline_storage_provider.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../data/datasources/maya_remote_datasource.dart';
 import '../../data/repositories/maya_repository_impl.dart';
@@ -15,6 +16,7 @@ final mayaRepositoryProvider = Provider<MayaRepository>((ref) {
   return MayaRepositoryImpl(
     remoteDataSource: ref.read(mayaRemoteDataSourceProvider),
     localDataSource: ref.read(authLocalDataSourceProvider),
+    offlineStorage: ref.read(offlineStorageServiceProvider),
   );
 });
 

@@ -13,4 +13,9 @@ abstract class MayaRepository {
 
   Future<Either<Failure, Map<String, dynamic>>> iniciarMonitoreoVoz(String hiveId);
   Future<Either<Failure, void>> guardarRespuestasVoz(String hiveId, List<Map<String, dynamic>> respuestas);
+
+  /// Precarga (con conexión) las preguntas de monitoreo de una colmena para
+  /// que Maya pueda usarlas después sin señal. Best-effort: no falla si no hay
+  /// conexión.
+  Future<void> precacheHiveMonitoring(String hiveId);
 }
