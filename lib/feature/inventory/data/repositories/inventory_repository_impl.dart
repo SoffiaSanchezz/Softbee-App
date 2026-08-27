@@ -1,9 +1,12 @@
 import 'package:either_dart/either.dart';
 import 'package:Softbee/core/error/failures.dart';
 import 'package:Softbee/core/network/network_info.dart';
+import 'package:Softbee/core/sync/pending_sync_operation.dart';
+import 'package:Softbee/core/sync/sync_queue.dart';
 import 'package:Softbee/feature/inventory/data/datasources/inventory_local_datasource.dart';
 import 'package:Softbee/feature/inventory/data/datasources/inventory_remote_datasource.dart';
 import 'package:Softbee/feature/inventory/data/models/inventory_item.dart';
+import 'package:Softbee/feature/inventory/data/sync/inventory_sync_handler.dart';
 import 'package:Softbee/feature/inventory/domain/repositories/inventory_repository.dart';
 import 'package:Softbee/feature/auth/data/datasources/auth_local_datasource.dart';
 
@@ -12,13 +15,17 @@ class InventoryRepositoryImpl implements InventoryRepository {
   final AuthLocalDataSource localDataSource;
   final InventoryLocalDataSource inventoryLocalDataSource;
   final NetworkInfo networkInfo;
+  final SyncQueue syncQueue;
 
   InventoryRepositoryImpl({
     required this.remoteDataSource,
     required this.localDataSource,
     required this.inventoryLocalDataSource,
     required this.networkInfo,
+    required this.syncQueue,
   });
+
+  String _newOpId() => 'op_${DateTime.now().microsecondsSinceEpoch}';
 
   @override
   Future<Either<Failure, List<InventoryItem>>> getInventoryItems({
@@ -69,14 +76,28 @@ class InventoryRepositoryImpl implements InventoryRepository {
         return Left(ServerFailure(e.toString()));
       }
     } else {
-      // OFFLINE: guardar localmente con ID temporal
+      // OFFLINE: guardar localmente con ID temporal y encolar
       try {
+        final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
         final tempItem = item.copyWith(
-          id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+          id: tempId,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
         await inventoryLocalDataSource.saveItem(item.apiaryId, tempItem);
+
+        await syncQueue.add(
+          PendingSyncOperation(
+            id: _newOpId(),
+            entity: kInventoryEntity,
+            type: SyncOperationType.create,
+            entityId: tempId,
+            apiaryId: item.apiaryId,
+            data: tempItem.toJson(),
+            createdAt: DateTime.now(),
+          ),
+        );
+
         return Right(tempItem);
       } catch (e) {
         return Left(CacheFailure('Error al guardar item localmente: ${e.toString()}'));
@@ -98,10 +119,40 @@ class InventoryRepositoryImpl implements InventoryRepository {
         return Left(ServerFailure(e.toString()));
       }
     } else {
-      // OFFLINE: actualizar localmente
+      // OFFLINE: actualizar localmente y encolar
       try {
         final updated = item.copyWith(updatedAt: DateTime.now());
         await inventoryLocalDataSource.updateLocalItem(item.apiaryId, updated);
+
+        // Si el item aún es temporal (creado offline y no sincronizado),
+        // actualizamos su operación create en cola en vez de encolar un update.
+        if (item.id.startsWith('temp_')) {
+          final ops = await syncQueue.getByEntity(kInventoryEntity);
+          final createOps = ops.where(
+            (op) =>
+                op.entityId == item.id &&
+                op.type == SyncOperationType.create,
+          );
+          if (createOps.isNotEmpty) {
+            final op = createOps.first;
+            await syncQueue.remove(op.id);
+            await syncQueue.add(op.copyWith(data: updated.toJson()));
+            return const Right(null);
+          }
+        }
+
+        await syncQueue.add(
+          PendingSyncOperation(
+            id: _newOpId(),
+            entity: kInventoryEntity,
+            type: SyncOperationType.update,
+            entityId: item.id,
+            apiaryId: item.apiaryId,
+            data: updated.toJson(),
+            createdAt: DateTime.now(),
+          ),
+        );
+
         return const Right(null);
       } catch (e) {
         return Left(CacheFailure('Error al actualizar item localmente: ${e.toString()}'));
@@ -110,16 +161,53 @@ class InventoryRepositoryImpl implements InventoryRepository {
   }
 
   @override
-  Future<Either<Failure, void>> deleteInventoryItem(String itemId) async {
+  Future<Either<Failure, void>> deleteInventoryItem(
+    String itemId, {
+    String? apiaryId,
+  }) async {
     if (await networkInfo.isConnected) {
       try {
         await remoteDataSource.deleteInventoryItem(itemId);
+        if (apiaryId != null) {
+          await inventoryLocalDataSource.deleteLocalItem(apiaryId, itemId);
+        }
         return const Right(null);
       } catch (e) {
         return Left(ServerFailure(e.toString()));
       }
     } else {
-      return Left(CacheFailure('No se puede eliminar sin conexión'));
+      // OFFLINE: eliminar del cache local y encolar
+      try {
+        if (apiaryId != null) {
+          await inventoryLocalDataSource.deleteLocalItem(apiaryId, itemId);
+        }
+
+        if (itemId.startsWith('temp_')) {
+          // Item creado offline y aún no sincronizado: basta con quitar sus
+          // operaciones pendientes para que nunca se suba.
+          final ops = await syncQueue.getByEntity(kInventoryEntity);
+          for (final op in ops) {
+            if (op.entityId == itemId) {
+              await syncQueue.remove(op.id);
+            }
+          }
+        } else {
+          await syncQueue.add(
+            PendingSyncOperation(
+              id: _newOpId(),
+              entity: kInventoryEntity,
+              type: SyncOperationType.delete,
+              entityId: itemId,
+              apiaryId: apiaryId,
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
+
+        return const Right(null);
+      } catch (e) {
+        return Left(CacheFailure('Error al eliminar item localmente: ${e.toString()}'));
+      }
     }
   }
 

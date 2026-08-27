@@ -12,6 +12,13 @@ import 'package:Softbee/feature/apiaries/domain/usecases/update_apiary_usecase.d
 import 'package:Softbee/feature/apiaries/domain/usecases/delete_apiary_usecase.dart';
 import 'package:Softbee/feature/apiaries/presentation/controllers/apiaries_controller.dart';
 import 'package:Softbee/feature/auth/presentation/providers/auth_providers.dart';
+import 'package:Softbee/feature/beehive/presentation/providers/beehive_providers.dart';
+import 'package:Softbee/feature/inventory/presentation/providers/inventory_providers.dart';
+import 'package:Softbee/feature/maya/presentation/providers/maya_providers.dart';
+import 'package:Softbee/core/services/offline_storage_provider.dart';
+import 'package:Softbee/core/sync/entity_sync_handler.dart';
+import 'package:Softbee/core/sync/sync_dispatcher.dart';
+import 'package:Softbee/core/sync/sync_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final networkInfoProvider = Provider<NetworkInfo>((ref) {
@@ -39,11 +46,31 @@ final apiaryRepositoryProvider = Provider<ApiaryRepository>((ref) {
 
 // ===================== SYNC SERVICE =====================
 
+/// Lista central de handlers de sincronización de la cola genérica.
+/// Aquí se registran las features conforme se van habilitando para offline.
+final syncHandlersProvider = Provider<List<EntitySyncHandler>>((ref) {
+  return [
+    ref.read(inventorySyncHandlerProvider),
+  ];
+});
+
+final syncDispatcherProvider = Provider<SyncDispatcher>((ref) {
+  return SyncDispatcher(
+    queue: ref.read(syncQueueProvider),
+    handlers: ref.read(syncHandlersProvider),
+  );
+});
+
 final syncServiceProvider = Provider<SyncService>((ref) {
   return SyncService(
     remoteDataSource: ref.read(apiaryRemoteDataSourceProvider),
     localDataSource: ref.read(apiaryLocalDataSourceProvider),
     authLocalDataSource: ref.read(authLocalDataSourceProvider),
+    offlineStorage: ref.read(offlineStorageServiceProvider),
+    mayaRepository: ref.read(mayaRepositoryProvider),
+    beehiveRemoteDataSource: ref.read(beehiveRemoteDataSourceProvider),
+    beehiveLocalDataSource: ref.read(beehiveLocalDataSourceProvider),
+    syncDispatcher: ref.read(syncDispatcherProvider),
   );
 });
 

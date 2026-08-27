@@ -4,6 +4,7 @@ import 'package:Softbee/core/network/network_info.dart';
 import 'package:Softbee/feature/auth/data/datasources/auth_local_datasource.dart';
 import 'package:Softbee/feature/beehive/data/datasources/beehive_local_datasource.dart';
 import 'package:Softbee/feature/beehive/data/datasources/beehive_remote_datasource.dart';
+import 'package:Softbee/feature/beehive/data/models/pending_beehive_operation.dart';
 import 'package:Softbee/feature/beehive/domain/entities/beehive.dart';
 import 'package:Softbee/feature/beehive/domain/repositories/beehive_repository.dart';
 
@@ -119,7 +120,32 @@ class BeehiveRepositoryImpl implements BeehiveRepository {
           createdAt: DateTime.now(),
         );
 
+        // Guardar en cache local
         await beehiveLocalDataSource.saveBeehive(apiaryId, localBeehive);
+
+        // Encolar operación pendiente para sincronizar al reconectar
+        await beehiveLocalDataSource.addPendingOperation(
+          PendingBeehiveOperation(
+            id: 'op_${DateTime.now().millisecondsSinceEpoch}',
+            type: BeehiveOperationType.create,
+            beehiveId: tempId,
+            apiaryId: apiaryId,
+            data: {
+              'beehive_number': beehiveNumber,
+              'activity_level': activityLevel,
+              'bee_population': beePopulation,
+              'food_frames': foodFrames,
+              'brood_frames': broodFrames,
+              'hive_status': hiveStatus,
+              'health_status': healthStatus,
+              'has_production_chamber': hasProductionChamber,
+              'observations': observations,
+              'treatments': treatments,
+            },
+            createdAt: DateTime.now(),
+          ),
+        );
+
         return Right(localBeehive);
       } catch (e) {
         return Left(CacheFailure('Error al guardar colmena localmente: ${e.toString()}'));
@@ -195,6 +221,61 @@ class BeehiveRepositoryImpl implements BeehiveRepository {
         );
 
         await beehiveLocalDataSource.updateLocalBeehive(apiaryId, updated);
+
+        // Encolar operación pendiente. Si la colmena aún es temporal (creada
+        // offline y no sincronizada), actualizamos la operación de creación
+        // en cola en lugar de encolar un update aparte.
+        if (beehiveId.startsWith('temp_')) {
+          final pendingOps = await beehiveLocalDataSource.getPendingOperations();
+          final createOp = pendingOps.where(
+            (op) =>
+                op.beehiveId == beehiveId &&
+                op.type == BeehiveOperationType.create,
+          );
+          if (createOp.isNotEmpty) {
+            final op = createOp.first;
+            final mergedData = Map<String, dynamic>.from(op.data ?? {});
+            mergedData['beehive_number'] = updated.beehiveNumber;
+            mergedData['activity_level'] = updated.activityLevel;
+            mergedData['bee_population'] = updated.beePopulation;
+            mergedData['food_frames'] = updated.foodFrames;
+            mergedData['brood_frames'] = updated.broodFrames;
+            mergedData['hive_status'] = updated.hiveStatus;
+            mergedData['health_status'] = updated.healthStatus;
+            mergedData['has_production_chamber'] = updated.hasProductionChamber;
+            mergedData['observations'] = updated.observations;
+            mergedData['treatments'] = updated.treatments;
+
+            await beehiveLocalDataSource.removePendingOperation(op.id);
+            await beehiveLocalDataSource.addPendingOperation(
+              op.copyWith(data: mergedData),
+            );
+            return Right(updated);
+          }
+        }
+
+        await beehiveLocalDataSource.addPendingOperation(
+          PendingBeehiveOperation(
+            id: 'op_${DateTime.now().millisecondsSinceEpoch}',
+            type: BeehiveOperationType.update,
+            beehiveId: beehiveId,
+            apiaryId: apiaryId,
+            data: {
+              'beehive_number': beehiveNumber,
+              'activity_level': activityLevel,
+              'bee_population': beePopulation,
+              'food_frames': foodFrames,
+              'brood_frames': broodFrames,
+              'hive_status': hiveStatus,
+              'health_status': healthStatus,
+              'has_production_chamber': hasProductionChamber,
+              'observations': observations,
+              'treatments': treatments,
+            },
+            createdAt: DateTime.now(),
+          ),
+        );
+
         return Right(updated);
       } catch (e) {
         return Left(CacheFailure('Error al actualizar colmena localmente: ${e.toString()}'));
@@ -223,9 +304,32 @@ class BeehiveRepositoryImpl implements BeehiveRepository {
         return Left(ServerFailure(e.toString()));
       }
     } else {
-      // OFFLINE: eliminar localmente
+      // OFFLINE: eliminar localmente y encolar
       try {
         await beehiveLocalDataSource.deleteLocalBeehive(apiaryId, beehiveId);
+
+        if (beehiveId.startsWith('temp_')) {
+          // Colmena creada offline y aún no sincronizada: basta con eliminar
+          // sus operaciones pendientes (create/update) para que nunca se suba.
+          final pendingOps = await beehiveLocalDataSource.getPendingOperations();
+          for (final op in pendingOps) {
+            if (op.beehiveId == beehiveId) {
+              await beehiveLocalDataSource.removePendingOperation(op.id);
+            }
+          }
+        } else {
+          // Colmena que existe en el servidor: encolar la eliminación.
+          await beehiveLocalDataSource.addPendingOperation(
+            PendingBeehiveOperation(
+              id: 'op_${DateTime.now().millisecondsSinceEpoch}',
+              type: BeehiveOperationType.delete,
+              beehiveId: beehiveId,
+              apiaryId: apiaryId,
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
+
         return const Right(null);
       } catch (e) {
         return Left(CacheFailure('Error al eliminar colmena localmente: ${e.toString()}'));
