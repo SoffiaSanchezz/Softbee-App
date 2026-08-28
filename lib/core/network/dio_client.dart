@@ -1,8 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/app_config.dart';
 
 final dioClientProvider = Provider<Dio>((ref) {
-  const baseUrl = 'https://strike-queue-oldest-drink.trycloudflare.com/';
+  final baseUrl = AppConfig.backUrl;
 
   final BaseOptions options = BaseOptions(
     baseUrl: baseUrl,

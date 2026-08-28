@@ -54,6 +54,9 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
+    - .env.dev
+    - .env.qa
+    - .env.prod
     - assets/images/
     - assets/animations/
     - assets/audio/
