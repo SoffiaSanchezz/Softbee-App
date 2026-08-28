@@ -465,6 +465,7 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
                           builder: (context) => HiveTreatmentsManagementDialog(
                             hiveId: hive.id,
                             hiveNumber: hive.beehiveNumber ?? 0,
+                            hive: hive,
                           ),
                         );
                       },
