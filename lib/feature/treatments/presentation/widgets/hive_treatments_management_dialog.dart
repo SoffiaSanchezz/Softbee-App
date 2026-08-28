@@ -10,6 +10,7 @@ import '../pages/treatment_detail_page.dart';
 import '../providers/treatment_providers.dart';
 import 'treatment_form_dialog.dart';
 import 'treatment_status.dart';
+import 'hoverable_card.dart';
 
 /// Listado de tratamientos de una colmena con búsqueda, filtros, paginación y
 /// acciones CRUD (ver informe, editar, eliminar).
@@ -333,26 +334,10 @@ class _HiveTreatmentsManagementDialogState
 
     final details = <Widget>[startItem, endItem, respItem, ?updateItem];
 
-    return Container(
+    return HoverableCard(
       margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: color.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
+      borderRadius: 18,
+      accentColor: color,
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
