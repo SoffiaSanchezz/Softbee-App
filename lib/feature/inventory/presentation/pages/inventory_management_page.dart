@@ -1189,7 +1189,13 @@ class _InventoryManagementPageState
           _buildHeader(state, ScreenType.mobile),
           _buildSearchAndAddSection(state, controller, ScreenType.mobile),
           Expanded(
-            child: _buildListaInsumos(state, controller, ScreenType.mobile),
+            // Pequeño margen lateral en móvil para que las cards no queden
+            // pegadas a los bordes de la pantalla (sin scroll horizontal, ya
+            // que la lista se desplaza verticalmente).
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: _buildListaInsumos(state, controller, ScreenType.mobile),
+            ),
           ),
         ],
       ),
