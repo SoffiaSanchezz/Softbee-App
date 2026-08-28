@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:Softbee/feature/beehive/presentation/providers/beehive_providers.dart';
 import 'package:Softbee/feature/beehive/domain/entities/beehive.dart';
 import 'package:Softbee/feature/treatments/presentation/widgets/hive_treatments_management_dialog.dart';
+import 'package:Softbee/feature/treatments/presentation/widgets/hoverable_card.dart';
 
 class TreatmentsPage extends ConsumerStatefulWidget {
   final String apiaryId;
@@ -185,16 +186,32 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
   }
 
   // Móvil: reutiliza la misma tarjeta visual de Desktop (colores, iconos,
-  // bordes y jerarquía) pero en su variante compacta y distribuida en un
-  // grid horizontal (2 columnas) en lugar de una lista apilada.
+  // bordes y jerarquía) en su variante compacta.
+  //
+  //  - Teléfonos (< 600 px): una card debajo de otra, aprovechando todo el
+  //    ancho disponible y con márgenes laterales.
+  //  - Tablets (600 px hasta el breakpoint de escritorio): se conserva el
+  //    grid de 2/3 columnas.
   Widget _buildMobileGrid(List<Beehive> hives) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // En pantallas muy estrechas 2 columnas; en las más anchas
-        // (tablet en vertical) permitimos 3 para aprovechar el espacio.
         final double width = constraints.maxWidth;
-        final int crossAxisCount = width >= 620 ? 3 : 2;
 
+        // Teléfonos: lista vertical a ancho completo.
+        if (width < 600) {
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            itemCount: hives.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 14),
+            itemBuilder: (context, index) => SizedBox(
+              height: 200,
+              child: _buildDesktopHiveCard(hives[index], compact: true),
+            ),
+          );
+        }
+
+        // Tablets (por debajo del breakpoint de escritorio): grid.
+        final int crossAxisCount = width >= 620 ? 3 : 2;
         return GridView.builder(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -368,129 +385,164 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
 
     // Dimensiones adaptadas: en móvil (compact) se reducen tamaños y
     // espaciados manteniendo estilos, colores, iconos y bordes.
-    final double cardRadius = compact ? 16 : 20;
+    final double cardRadius = compact ? 16 : 18;
+    final double accentWidth = compact ? 4 : 5;
+    final double iconBox = compact ? 40 : 46;
+    final double hiveIconSize = compact ? 20 : 24;
+    final double avatarSpacing = compact ? 10 : 14;
+    final double titleFontSize = compact ? 14 : 16.5;
     final EdgeInsets headerPadding = compact
-        ? const EdgeInsets.symmetric(horizontal: 12, vertical: 12)
-        : const EdgeInsets.symmetric(horizontal: 18, vertical: 16);
-    final double avatarRadius = compact ? 15 : 22;
-    final double hiveIconSize = compact ? 18 : 24;
-    final double avatarSpacing = compact ? 8 : 12;
-    final double titleFontSize = compact ? 13.5 : 17;
+        ? const EdgeInsets.fromLTRB(12, 12, 10, 10)
+        : const EdgeInsets.fromLTRB(16, 16, 14, 12);
     final EdgeInsets bodyPadding = compact
-        ? const EdgeInsets.fromLTRB(12, 12, 12, 12)
-        : const EdgeInsets.fromLTRB(18, 16, 18, 16);
+        ? const EdgeInsets.fromLTRB(12, 4, 12, 12)
+        : const EdgeInsets.fromLTRB(16, 6, 16, 14);
     final double metricSpacing = compact ? 8 : 12;
-    final double buttonVerticalPadding = compact ? 10 : 14;
+    final double buttonVerticalPadding = compact ? 11 : 14;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(cardRadius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
+    return HoverableCard(
+      borderRadius: cardRadius,
+      accentColor: healthColor,
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Banda superior con número de colmena y estado de salud.
+          // Franja lateral con el color del estado de salud.
           Container(
-            padding: headerPadding,
+            width: accentWidth,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.amber.shade50, Colors.orange.shade50],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [healthColor, healthColor.withValues(alpha: 0.55)],
               ),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: avatarRadius,
-                  backgroundColor: Colors.amber.shade100,
-                  child: Icon(Icons.hive_rounded,
-                      color: Colors.amber.shade800, size: hiveIconSize),
-                ),
-                SizedBox(width: avatarSpacing),
-                Expanded(
-                  child: Text(
-                    'Colmena #${hive.beehiveNumber ?? '-'}',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      fontSize: titleFontSize,
-                      color: Colors.grey.shade900,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                SizedBox(width: compact ? 6 : 8),
-                _buildHealthChip(hive.healthStatus, healthColor,
-                    compact: compact),
-              ],
             ),
           ),
-          // Cuerpo con métricas.
           Expanded(
-            child: Padding(
-              padding: bodyPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildMetricRow(
-                    Icons.local_fire_department_rounded,
-                    'Actividad',
-                    hive.activityLevel ?? 'N/A',
-                    compact: compact,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Encabezado: icono + colmena (título) + subtítulo + salud.
+                Padding(
+                  padding: headerPadding,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: iconBox,
+                        height: iconBox,
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(compact ? 12 : 14),
+                        ),
+                        child: Icon(Icons.hive_rounded,
+                            color: Colors.amber.shade700, size: hiveIconSize),
+                      ),
+                      SizedBox(width: avatarSpacing),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Colmena #${hive.beehiveNumber ?? '-'}',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700,
+                                fontSize: titleFontSize,
+                                height: 1.15,
+                                color: const Color(0xFF0F172A), // slate 900
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.medical_services_rounded,
+                                    size: 12, color: Colors.grey.shade400),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    'En tratamiento',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: compact ? 11 : 12,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: compact ? 6 : 8),
+                      _buildHealthChip(hive.healthStatus, healthColor,
+                          compact: compact),
+                    ],
                   ),
-                  SizedBox(height: metricSpacing),
-                  _buildMetricRow(
-                    Icons.groups_rounded,
-                    'Población',
-                    hive.beePopulation ?? 'N/A',
-                    compact: compact,
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => HiveTreatmentsManagementDialog(
-                            hiveId: hive.id,
-                            hiveNumber: hive.beehiveNumber ?? 0,
+                ),
+                // Cuerpo con métricas.
+                Expanded(
+                  child: Padding(
+                    padding: bodyPadding,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildMetricRow(
+                          Icons.local_fire_department_rounded,
+                          'Actividad',
+                          hive.activityLevel ?? 'N/A',
+                          compact: compact,
+                        ),
+                        SizedBox(height: metricSpacing),
+                        _buildMetricRow(
+                          Icons.groups_rounded,
+                          'Población',
+                          hive.beePopulation ?? 'N/A',
+                          compact: compact,
+                        ),
+                        const Spacer(),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) =>
+                                    HiveTreatmentsManagementDialog(
+                                  hiveId: hive.id,
+                                  hiveNumber: hive.beehiveNumber ?? 0,
+                                  hive: hive,
+                                ),
+                              );
+                            },
+                            icon: Icon(Icons.medical_services_rounded,
+                                size: compact ? 16 : 18),
+                            label: Text(
+                              'Gestionar',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: compact ? 13 : null,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber.shade700,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: EdgeInsets.symmetric(
+                                  vertical: buttonVerticalPadding),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
-                        );
-                      },
-                      icon: Icon(Icons.medical_services_rounded,
-                          size: compact ? 16 : 18),
-                      label: Text(
-                        'Gestionar',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          fontSize: compact ? 13 : null,
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber.shade700,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: EdgeInsets.symmetric(
-                            vertical: buttonVerticalPadding),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -503,8 +555,16 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
     final double fontSize = compact ? 12 : 13;
     return Row(
       children: [
-        Icon(icon, size: compact ? 16 : 18, color: Colors.grey.shade500),
-        SizedBox(width: compact ? 6 : 8),
+        Container(
+          padding: EdgeInsets.all(compact ? 5 : 6),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon,
+              size: compact ? 14 : 16, color: Colors.amber.shade700),
+        ),
+        SizedBox(width: compact ? 8 : 10),
         Text(
           '$label:',
           style: GoogleFonts.poppins(
@@ -519,7 +579,7 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
             style: GoogleFonts.poppins(
               fontSize: fontSize,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade900,
+              color: const Color(0xFF334155), // slate 700
             ),
             overflow: TextOverflow.ellipsis,
           ),
@@ -534,8 +594,9 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
           ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
           : const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -579,7 +640,7 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
         value.contains('malo')) {
       return Colors.red.shade600;
     }
-    return Colors.grey.shade500;
+    return const Color.fromARGB(255, 241, 4, 4);
   }
 
   Widget _buildDesktopEmptyState() {

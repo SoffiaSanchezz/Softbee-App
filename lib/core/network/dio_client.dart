@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
@@ -11,5 +12,6 @@ final dioClientProvider = Provider<Dio>((ref) {
     receiveTimeout: const Duration(seconds: 10),
     headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
   );
+
   return Dio(options);
 });
