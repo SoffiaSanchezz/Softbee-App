@@ -3,17 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../domain/entities/treatment.dart';
 import '../providers/treatment_providers.dart';
+import 'treatment_status.dart';
 
+/// Formulario para crear o editar un tratamiento.
+///
+/// - Si [treatment] es `null` se comporta como formulario de creación.
+/// - Si [treatment] tiene valor se comporta como formulario de edición:
+///   precarga todos los datos y expone además los campos de cierre del
+///   tratamiento (estado, resultado final, condición final, recomendaciones).
 class TreatmentFormDialog extends ConsumerStatefulWidget {
   final String hiveId;
   final int hiveNumber;
+  final Treatment? treatment;
 
   const TreatmentFormDialog({
     super.key,
     required this.hiveId,
     required this.hiveNumber,
+    this.treatment,
   });
+
+  bool get isEditing => treatment != null;
 
   @override
   ConsumerState<TreatmentFormDialog> createState() => _TreatmentFormDialogState();
@@ -21,22 +33,55 @@ class TreatmentFormDialog extends ConsumerStatefulWidget {
 
 class _TreatmentFormDialogState extends ConsumerState<TreatmentFormDialog> {
   final _formKey = GlobalKey<FormState>();
-  
-  final _treatmentTypeController = TextEditingController();
-  final _productNameController = TextEditingController();
-  final _activeIngredientController = TextEditingController();
-  final _targetDiseaseController = TextEditingController();
-  final _estimatedDurationController = TextEditingController();
-  final _applicationMethodController = TextEditingController();
-  final _dosageAppliedController = TextEditingController();
-  final _dosageUnitController = TextEditingController();
-  final _batchNumberController = TextEditingController();
-  final _supplierController = TextEditingController();
-  final _appliedByController = TextEditingController();
-  
-  DateTime _startDate = DateTime.now();
+
+  late final TextEditingController _treatmentTypeController;
+  late final TextEditingController _productNameController;
+  late final TextEditingController _activeIngredientController;
+  late final TextEditingController _targetDiseaseController;
+  late final TextEditingController _estimatedDurationController;
+  late final TextEditingController _applicationMethodController;
+  late final TextEditingController _dosageAppliedController;
+  late final TextEditingController _dosageUnitController;
+  late final TextEditingController _batchNumberController;
+  late final TextEditingController _supplierController;
+  late final TextEditingController _appliedByController;
+  late final TextEditingController _finalResultController;
+  late final TextEditingController _finalHiveConditionController;
+  late final TextEditingController _futureRecommendationsController;
+
+  late DateTime _startDate;
   DateTime? _endDate;
   DateTime? _expiryDate;
+  late String _status;
+  late bool _requiresRepeat;
+
+  @override
+  void initState() {
+    super.initState();
+    final t = widget.treatment;
+    _treatmentTypeController = TextEditingController(text: t?.treatmentType ?? '');
+    _productNameController = TextEditingController(text: t?.productName ?? '');
+    _activeIngredientController = TextEditingController(text: t?.activeIngredient ?? '');
+    _targetDiseaseController = TextEditingController(text: t?.targetDisease ?? '');
+    _estimatedDurationController =
+        TextEditingController(text: t?.estimatedDurationDays?.toString() ?? '');
+    _applicationMethodController = TextEditingController(text: t?.applicationMethod ?? '');
+    _dosageAppliedController = TextEditingController(text: t?.dosageApplied ?? '');
+    _dosageUnitController = TextEditingController(text: t?.dosageUnit ?? '');
+    _batchNumberController = TextEditingController(text: t?.batchNumber ?? '');
+    _supplierController = TextEditingController(text: t?.supplier ?? '');
+    _appliedByController = TextEditingController(text: t?.appliedBy ?? '');
+    _finalResultController = TextEditingController(text: t?.finalResult ?? '');
+    _finalHiveConditionController = TextEditingController(text: t?.finalHiveCondition ?? '');
+    _futureRecommendationsController =
+        TextEditingController(text: t?.futureRecommendations ?? '');
+
+    _startDate = t?.startDate ?? DateTime.now();
+    _endDate = t?.endDate;
+    _expiryDate = t?.expiryDate;
+    _status = t != null ? TreatmentStatus.label(t.status) : TreatmentStatus.active;
+    _requiresRepeat = t?.requiresRepeat ?? false;
+  }
 
   @override
   void dispose() {
@@ -51,10 +96,14 @@ class _TreatmentFormDialogState extends ConsumerState<TreatmentFormDialog> {
     _batchNumberController.dispose();
     _supplierController.dispose();
     _appliedByController.dispose();
+    _finalResultController.dispose();
+    _finalHiveConditionController.dispose();
+    _futureRecommendationsController.dispose();
     super.dispose();
   }
 
-  Future<void> _selectDate(BuildContext context, DateTime initialDate, Function(DateTime) onSelected) async {
+  Future<void> _selectDate(
+      BuildContext context, DateTime initialDate, Function(DateTime) onSelected) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -74,39 +123,65 @@ class _TreatmentFormDialogState extends ConsumerState<TreatmentFormDialog> {
       },
     );
     if (picked != null) {
-      setState(() {
-        onSelected(picked);
-      });
+      setState(() => onSelected(picked));
     }
   }
+
+  String? _text(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final data = {
-      'hive_id': widget.hiveId,
-      'treatment_type': _treatmentTypeController.text,
-      'product_name': _productNameController.text,
-      'start_date': DateFormat('yyyy-MM-dd').format(_startDate),
-      'active_ingredient': _activeIngredientController.text.isEmpty ? null : _activeIngredientController.text,
-      'target_disease': _targetDiseaseController.text.isEmpty ? null : _targetDiseaseController.text,
-      'estimated_duration_days': int.tryParse(_estimatedDurationController.text),
-      'end_date': _endDate != null ? DateFormat('yyyy-MM-dd').format(_endDate!) : null,
-      'application_method': _applicationMethodController.text.isEmpty ? null : _applicationMethodController.text,
-      'dosage_applied': _dosageAppliedController.text.isEmpty ? null : _dosageAppliedController.text,
-      'dosage_unit': _dosageUnitController.text.isEmpty ? null : _dosageUnitController.text,
-      'batch_number': _batchNumberController.text.isEmpty ? null : _batchNumberController.text,
-      'supplier': _supplierController.text.isEmpty ? null : _supplierController.text,
-      'expiry_date': _expiryDate != null ? DateFormat('yyyy-MM-dd').format(_expiryDate!) : null,
-      'applied_by': _appliedByController.text.isEmpty ? null : _appliedByController.text,
-    };
+    final controller = ref.read(treatmentsControllerProvider.notifier);
 
-    await ref.read(treatmentsControllerProvider.notifier).createTreatment(data);
-    
+    if (widget.isEditing) {
+      final data = {
+        'treatment_type': _treatmentTypeController.text.trim(),
+        'product_name': _productNameController.text.trim(),
+        'start_date': DateFormat('yyyy-MM-dd').format(_startDate),
+        'active_ingredient': _text(_activeIngredientController),
+        'target_disease': _text(_targetDiseaseController),
+        'estimated_duration_days': int.tryParse(_estimatedDurationController.text.trim()),
+        'end_date': _endDate != null ? DateFormat('yyyy-MM-dd').format(_endDate!) : null,
+        'application_method': _text(_applicationMethodController),
+        'dosage_applied': _text(_dosageAppliedController),
+        'dosage_unit': _text(_dosageUnitController),
+        'batch_number': _text(_batchNumberController),
+        'supplier': _text(_supplierController),
+        'expiry_date': _expiryDate != null ? DateFormat('yyyy-MM-dd').format(_expiryDate!) : null,
+        'applied_by': _text(_appliedByController),
+        'status': _status,
+        'final_result': _text(_finalResultController),
+        'final_hive_condition': _text(_finalHiveConditionController),
+        'requires_repeat': _requiresRepeat,
+        'future_recommendations': _text(_futureRecommendationsController),
+      };
+      await controller.updateTreatment(widget.treatment!.id, data);
+    } else {
+      final data = {
+        'hive_id': widget.hiveId,
+        'treatment_type': _treatmentTypeController.text.trim(),
+        'product_name': _productNameController.text.trim(),
+        'start_date': DateFormat('yyyy-MM-dd').format(_startDate),
+        'active_ingredient': _text(_activeIngredientController),
+        'target_disease': _text(_targetDiseaseController),
+        'estimated_duration_days': int.tryParse(_estimatedDurationController.text.trim()),
+        'end_date': _endDate != null ? DateFormat('yyyy-MM-dd').format(_endDate!) : null,
+        'application_method': _text(_applicationMethodController),
+        'dosage_applied': _text(_dosageAppliedController),
+        'dosage_unit': _text(_dosageUnitController),
+        'batch_number': _text(_batchNumberController),
+        'supplier': _text(_supplierController),
+        'expiry_date': _expiryDate != null ? DateFormat('yyyy-MM-dd').format(_expiryDate!) : null,
+        'applied_by': _text(_appliedByController),
+      };
+      await controller.createTreatment(data);
+    }
+
     if (mounted) {
       final state = ref.read(treatmentsControllerProvider);
       if (state.errorMessage == null) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
       }
     }
   }
@@ -114,6 +189,11 @@ class _TreatmentFormDialogState extends ConsumerState<TreatmentFormDialog> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(treatmentsControllerProvider);
+    final bool isEditing = widget.isEditing;
+
+    final Size screenSize = MediaQuery.of(context).size;
+    final bool isMobile = screenSize.width < 600;
+    final double dialogWidth = isMobile ? screenSize.width - 32 : 520;
 
     return AlertDialog(
       backgroundColor: Colors.white,
@@ -128,28 +208,30 @@ class _TreatmentFormDialogState extends ConsumerState<TreatmentFormDialog> {
         ),
         child: Column(
           children: [
-            Icon(Icons.medication_rounded, color: Colors.amber.shade700, size: 40),
+            Icon(
+              isEditing ? Icons.edit_note_rounded : Icons.medication_rounded,
+              color: Colors.amber.shade700,
+              size: 40,
+            ),
             const SizedBox(height: 8),
             Text(
-              'Nuevo Tratamiento',
+              isEditing ? 'Editar Tratamiento' : 'Nuevo Tratamiento',
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
                 color: Colors.amber.shade900,
               ),
+              textAlign: TextAlign.center,
             ),
             Text(
               'Colmena #${widget.hiveNumber}',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.amber.shade800,
-              ),
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.amber.shade800),
             ),
           ],
         ),
       ),
       content: SizedBox(
-        width: 500,
+        width: dialogWidth,
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -157,52 +239,74 @@ class _TreatmentFormDialogState extends ConsumerState<TreatmentFormDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildSectionTitle('Información General'),
-                _buildTextField(_treatmentTypeController, 'Tipo de Tratamiento*', 'Ej: Orgánico, Químico', Icons.category_rounded),
-                _buildTextField(_productNameController, 'Nombre del Producto*', 'Ej: Apivar, Ácido Oxálico', Icons.inventory_2_rounded),
-                _buildTextField(_activeIngredientController, 'Ingrediente Activo', 'Ej: Amitraz', Icons.science_rounded),
-                _buildTextField(_targetDiseaseController, 'Enfermedad Objetivo', 'Ej: Varroa', Icons.bug_report_rounded),
-                
+                _buildTextField(_treatmentTypeController, 'Tipo de Tratamiento*',
+                    'Ej: Orgánico, Químico', Icons.category_rounded),
+                _buildTextField(_productNameController, 'Nombre del Producto*',
+                    'Ej: Apivar, Ácido Oxálico', Icons.inventory_2_rounded),
+                _buildTextField(_activeIngredientController, 'Ingrediente Activo',
+                    'Ej: Amitraz', Icons.science_rounded),
+                _buildTextField(_targetDiseaseController, 'Enfermedad Objetivo',
+                    'Ej: Varroa', Icons.bug_report_rounded),
+
                 const SizedBox(height: 16),
                 _buildSectionTitle('Fechas y Duración'),
-                _buildDatePickerTile(
-                  'Fecha de Inicio',
-                  _startDate,
-                  (date) => _startDate = date,
-                ),
-                _buildTextField(_estimatedDurationController, 'Duración Estimada (días)', 'Ej: 30', Icons.timer_rounded, keyboardType: TextInputType.number),
-                _buildDatePickerTile(
-                  'Fecha de Fin',
-                  _endDate,
-                  (date) => _endDate = date,
-                  placeholder: 'No definida',
-                ),
-                
+                _buildDatePickerTile('Fecha de Inicio', _startDate, (date) => _startDate = date),
+                _buildTextField(_estimatedDurationController, 'Duración Estimada (días)',
+                    'Ej: 30', Icons.timer_rounded,
+                    keyboardType: TextInputType.number),
+                _buildDatePickerTile('Fecha de Fin', _endDate, (date) => _endDate = date,
+                    placeholder: 'No definida'),
+
                 const SizedBox(height: 16),
                 _buildSectionTitle('Aplicación'),
-                _buildTextField(_applicationMethodController, 'Método de Aplicación', 'Ej: Tiras, Goteo', Icons.handyman_rounded),
+                _buildTextField(_applicationMethodController, 'Método de Aplicación',
+                    'Ej: Tiras, Goteo', Icons.handyman_rounded),
                 Row(
                   children: [
-                    Expanded(child: _buildTextField(_dosageAppliedController, 'Dosis', 'Ej: 2', Icons.scale_rounded)),
+                    Expanded(
+                        child: _buildTextField(_dosageAppliedController, 'Dosis', 'Ej: 2',
+                            Icons.scale_rounded)),
                     const SizedBox(width: 10),
-                    Expanded(child: _buildTextField(_dosageUnitController, 'Unidad', 'Ej: Tiras', Icons.straighten_rounded)),
+                    Expanded(
+                        child: _buildTextField(_dosageUnitController, 'Unidad', 'Ej: Tiras',
+                            Icons.straighten_rounded)),
                   ],
                 ),
-                
+
                 const SizedBox(height: 16),
                 _buildSectionTitle('Detalles del Producto'),
-                _buildTextField(_batchNumberController, 'Número de Lote', '', Icons.qr_code_rounded),
+                _buildTextField(
+                    _batchNumberController, 'Número de Lote', '', Icons.qr_code_rounded),
                 _buildTextField(_supplierController, 'Proveedor', '', Icons.store_rounded),
                 _buildDatePickerTile(
-                  'Fecha de Vencimiento',
-                  _expiryDate,
-                  (date) => _expiryDate = date,
-                  placeholder: 'No definida',
-                ),
-                
+                    'Fecha de Vencimiento', _expiryDate, (date) => _expiryDate = date,
+                    placeholder: 'No definida'),
+
                 const SizedBox(height: 16),
                 _buildSectionTitle('Responsable'),
                 _buildTextField(_appliedByController, 'Aplicado por', '', Icons.person_rounded),
-                
+
+                // Sección de cierre/seguimiento, solo en modo edición.
+                if (isEditing) ...[
+                  const SizedBox(height: 16),
+                  _buildSectionTitle('Estado y Cierre'),
+                  _buildStatusDropdown(),
+                  _buildTextField(_finalResultController, 'Resultado Final',
+                      'Ej: Infestación controlada', Icons.flag_rounded),
+                  _buildTextField(_finalHiveConditionController, 'Condición Final de la Colmena',
+                      'Ej: Saludable', Icons.health_and_safety_rounded),
+                  _buildTextField(_futureRecommendationsController, 'Recomendaciones Futuras',
+                      '', Icons.tips_and_updates_rounded, maxLines: 2),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('Requiere repetición',
+                        style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade800)),
+                    value: _requiresRepeat,
+                    activeThumbColor: Colors.amber.shade700,
+                    onChanged: (v) => setState(() => _requiresRepeat = v),
+                  ),
+                ],
+
                 if (state.errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
@@ -230,12 +334,56 @@ class _TreatmentFormDialogState extends ConsumerState<TreatmentFormDialog> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
-          child: state.isCreating 
-            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-            : Text('Guardar Tratamiento', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          child: state.isCreating
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : Text(isEditing ? 'Guardar Cambios' : 'Guardar Tratamiento',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
         ),
       ],
     ).animate().scale(duration: 300.ms, curve: Curves.easeOutBack).fadeIn();
+  }
+
+  Widget _buildStatusDropdown() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: DropdownButtonFormField<String>(
+        initialValue: TreatmentStatus.options.contains(_status)
+            ? _status
+            : TreatmentStatus.active,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: 'Estado',
+          prefixIcon: Icon(Icons.flag_circle_rounded, color: Colors.amber.shade700, size: 20),
+          filled: true,
+          fillColor: Colors.grey.shade50,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.amber.shade700, width: 2),
+          ),
+          labelStyle: GoogleFonts.poppins(color: Colors.grey.shade700, fontSize: 14),
+        ),
+        items: TreatmentStatus.options
+            .map((s) => DropdownMenuItem(
+                  value: s,
+                  child: Text(s, style: GoogleFonts.poppins(fontSize: 15)),
+                ))
+            .toList(),
+        onChanged: (value) {
+          if (value != null) setState(() => _status = value);
+        },
+      ),
+    );
   }
 
   Widget _buildSectionTitle(String title) {
@@ -265,7 +413,8 @@ class _TreatmentFormDialogState extends ConsumerState<TreatmentFormDialog> {
     );
   }
 
-  Widget _buildDatePickerTile(String label, DateTime? date, Function(DateTime) onSelected, {String? placeholder}) {
+  Widget _buildDatePickerTile(String label, DateTime? date, Function(DateTime) onSelected,
+      {String? placeholder}) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
@@ -278,7 +427,8 @@ class _TreatmentFormDialogState extends ConsumerState<TreatmentFormDialog> {
         title: Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600)),
         subtitle: Text(
           date != null ? DateFormat('dd/MM/yyyy').format(date) : (placeholder ?? 'Seleccionar fecha'),
-          style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+          style: GoogleFonts.poppins(
+              fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
         ),
         trailing: Icon(Icons.calendar_month_rounded, color: Colors.amber.shade700),
         onTap: () => _selectDate(context, date ?? DateTime.now(), onSelected),
@@ -286,11 +436,14 @@ class _TreatmentFormDialogState extends ConsumerState<TreatmentFormDialog> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, String hint, IconData icon, {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField(
+      TextEditingController controller, String label, String hint, IconData icon,
+      {TextInputType keyboardType = TextInputType.text, int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextFormField(
         controller: controller,
+        maxLines: maxLines,
         style: GoogleFonts.poppins(fontSize: 15),
         decoration: InputDecoration(
           labelText: label,
@@ -315,7 +468,7 @@ class _TreatmentFormDialogState extends ConsumerState<TreatmentFormDialog> {
         ),
         keyboardType: keyboardType,
         validator: (value) {
-          if (label.endsWith('*') && (value == null || value.isEmpty)) {
+          if (label.endsWith('*') && (value == null || value.trim().isEmpty)) {
             return 'Este campo es obligatorio';
           }
           return null;
