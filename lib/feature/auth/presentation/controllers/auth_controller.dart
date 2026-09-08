@@ -8,6 +8,7 @@ import '../../core/usecase/get_user_from_token_usecase.dart';
 import '../../core/usecase/login_usecase.dart';
 import '../../core/usecase/logout_usecase.dart';
 import '../../core/usecase/register_usecase.dart';
+import '../../core/usecase/update_profile_usecase.dart';
 
 class AuthState {
   final bool isLoading;
@@ -55,6 +56,7 @@ class AuthController extends StateNotifier<AuthState> {
   final RegisterUseCase registerUseCase; // Add RegisterUseCase
   final CreateApiaryUseCase
   createApiaryUseCase; // Se inyectará en RegisterController
+  final UpdateProfileUseCase updateProfileUseCase;
 
   AuthController({
     required this.loginUseCase,
@@ -63,6 +65,7 @@ class AuthController extends StateNotifier<AuthState> {
     required this.getUserFromTokenUseCase,
     required this.registerUseCase,
     required this.createApiaryUseCase,
+    required this.updateProfileUseCase,
   }) : super(const AuthState()) {
     _init(); // Call _init to check auth status on startup
   }
@@ -191,6 +194,55 @@ class AuthController extends StateNotifier<AuthState> {
         state = const AuthState(
           isAuthenticating: false,
         ); // Reset state completely
+      },
+    );
+  }
+
+  /// Actualiza el perfil del usuario actual.
+  ///
+  /// Devuelve `null` si la actualización fue exitosa, o un mensaje de error en
+  /// caso contrario. Al tener éxito, `state.user` se actualiza para que la UI
+  /// refleje los cambios de inmediato.
+  ///
+  /// Los campos de texto vacíos se interpretan como "sin dato" (se limpian).
+  Future<String?> updateProfile({
+    required String username,
+    String? fullName,
+    String? phone,
+    String? location,
+    String? photoUrl,
+    bool removePhoto = false,
+  }) async {
+    final current = state.user;
+    if (current == null) {
+      return 'No hay una sesión activa.';
+    }
+
+    String? clean(String? value) {
+      if (value == null) return null;
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? null : trimmed;
+    }
+
+    final updatedUser = current.copyWith(
+      username: username.trim().isEmpty ? current.username : username.trim(),
+      fullName: clean(fullName),
+      clearFullName: clean(fullName) == null,
+      phone: clean(phone),
+      clearPhone: clean(phone) == null,
+      location: clean(location),
+      clearLocation: clean(location) == null,
+      photoUrl: removePhoto ? null : (photoUrl ?? current.photoUrl),
+      clearPhotoUrl: removePhoto,
+    );
+
+    final result = await updateProfileUseCase(updatedUser);
+
+    return result.fold(
+      (failure) => _mapFailureToMessage(failure),
+      (user) {
+        state = state.copyWith(user: user, error: null);
+        return null;
       },
     );
   }

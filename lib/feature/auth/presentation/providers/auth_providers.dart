@@ -11,6 +11,7 @@ import '../../core/usecase/login_usecase.dart';
 import '../../core/usecase/logout_usecase.dart';
 import '../../core/usecase/register_usecase.dart'; // Importar RegisterUseCase
 import '../../core/usecase/create_apiary_usecase.dart'; // Importar CreateApiaryUseCase
+import '../../core/usecase/update_profile_usecase.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/forgot_password_controller.dart';
 import '../controllers/reset_password_controller.dart';
@@ -64,6 +65,10 @@ final createApiaryUseCaseProvider = Provider<CreateApiaryUseCase>((ref) {
   return CreateApiaryUseCase(ref.read(authRepositoryProvider));
 });
 
+final updateProfileUseCaseProvider = Provider<UpdateProfileUseCase>((ref) {
+  return UpdateProfileUseCase(ref.read(authRepositoryProvider));
+});
+
 final geocodingServiceProvider = Provider<GeocodingService>((ref) {
   return GeocodingService();
 });
@@ -79,6 +84,7 @@ final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
         registerUseCaseProvider,
       ), // Inyectar RegisterUseCase
       createApiaryUseCase: ref.read(createApiaryUseCaseProvider),
+      updateProfileUseCase: ref.read(updateProfileUseCaseProvider),
     );
   },
 );
