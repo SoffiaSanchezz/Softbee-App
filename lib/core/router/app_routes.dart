@@ -5,6 +5,7 @@ abstract class AppRoutes {
   static const String dashboardRoute =
       '/dashboard'; // This is the main dashboard, not apiary specific
   static const String userProfileRoute = '/profile';
+  static const String settingsRoute = '/settings';
   static const String resetPasswordRoute = '/reset-password/:token';
 
   // Apiary-specific routes

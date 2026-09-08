@@ -2,8 +2,10 @@ import 'package:Softbee/feature/apiaries/presentation/providers/apiary_providers
 import 'package:Softbee/feature/apiaries/presentation/widgets/apiaries_menu.dart';
 import 'package:Softbee/feature/apiaries/presentation/widgets/apiary_form_dialog.dart';
 import 'package:Softbee/feature/auth/presentation/widgets/user_profile_header.dart';
+import 'package:Softbee/core/router/app_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class MenuScreen extends ConsumerWidget {
@@ -78,6 +80,11 @@ class MenuScreen extends ConsumerWidget {
           const UserProfileHeader(),
           SizedBox(width: isSmallScreen ? 4 : 8),
           // Boton de configuracion
+          IconButton(
+            tooltip: 'Configuración',
+            icon: const Icon(Icons.settings_rounded),
+            onPressed: () => context.go(AppRoutes.settingsRoute),
+          ),
           SizedBox(width: isSmallScreen ? 8 : 12),
         ],
       ),

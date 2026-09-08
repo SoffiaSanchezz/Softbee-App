@@ -14,6 +14,7 @@ import '../../feature/auth/presentation/controllers/auth_controller.dart';
 import '../pages/not_found_page.dart';
 import '../pages/landing_page.dart';
 import '../../feature/auth/presentation/pages/profile_page.dart';
+import '../../feature/settings/presentation/pages/settings_page.dart';
 
 import '../../feature/inventory/presentation/pages/inventory_management_page.dart'; // NEW INVENTORY PAGE
 import '../../feature/apiaries/presentation/pages/reports_page.dart';
@@ -60,6 +61,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.userProfileRoute, // Ruta de perfil de usuario
         builder: (context, state) => const ProfilePage(),
+      ),
+      GoRoute(
+        path: AppRoutes.settingsRoute, // Configuración general de la app
+        builder: (context, state) => const SettingsPage(),
       ),
       // Rutas específicas del apiario
       GoRoute(

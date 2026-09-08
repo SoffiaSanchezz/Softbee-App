@@ -215,8 +215,7 @@ class UserProfileHeader extends ConsumerWidget {
                 context.go(AppRoutes.userProfileRoute);
                 break;
               case 'settings':
-                // La configuración vive dentro de la vista de perfil.
-                context.go(AppRoutes.userProfileRoute);
+                context.go(AppRoutes.settingsRoute);
                 break;
               case 'logout':
                 ref.read(authControllerProvider.notifier).logout();
