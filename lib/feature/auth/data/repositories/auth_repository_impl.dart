@@ -97,15 +97,17 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User>> updateUserProfile(User user) async {
     try {
-      // NOTA: No existe todavía un endpoint remoto para actualizar el perfil.
-      // Cuando el backend lo exponga (por ejemplo `PUT /api/v1/users/me`),
-      // se debe llamar aquí a `remoteDataSource.updateProfile(user, token)`
-      // ANTES de cachear el resultado, para que la persistencia sea real.
-      await localDataSource.saveUser(user);
-      return Right(user);
+      // 1. Persistir en el backend. Devuelve el usuario tal como quedó guardado.
+      final updated = await remoteDataSource.updateProfile(user);
+      // 2. Cachear localmente el resultado del servidor para que la sesión
+      //    refleje los cambios incluso tras reiniciar la app.
+      await localDataSource.saveUser(updated);
+      return Right(updated);
     } catch (e) {
-      return const Left(
-        CacheFailure('No se pudo guardar la información del perfil.'),
+      return Left(
+        ServerFailure(
+          e.toString().replaceFirst('Exception: ', ''),
+        ),
       );
     }
   }

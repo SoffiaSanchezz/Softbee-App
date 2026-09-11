@@ -14,6 +14,12 @@ abstract class AuthRemoteDataSource {
   Future<String> login(String email, String password);
   Future<void> logout();
   Future<User> getUserFromToken(String token);
+
+  /// Actualiza el perfil del usuario en el backend (`PUT /api/v1/users/<id>`).
+  ///
+  /// Devuelve el [User] tal como quedó persistido en el servidor.
+  Future<User> updateProfile(User user);
+
   Future<void> createApiary(
     String userId,
     String apiaryName,
@@ -58,6 +64,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
             : response.data as Map<String, dynamic>;
 
         final token = data['access_token'];
+        final refreshToken = data['refresh_token'];
 
         final user = User(
           id: (data['user_id'] ?? '').toString(),
@@ -70,6 +77,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         if (token != null) {
           await localDataSource.saveUser(user);
           await localDataSource.saveToken(token.toString());
+          if (refreshToken != null) {
+            await localDataSource.saveRefreshToken(refreshToken.toString());
+          }
 
           return {'access_token': token.toString(), 'user': user};
         } else {
@@ -115,6 +125,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
             : response.data as Map<String, dynamic>;
 
         final token = data['access_token'];
+        final refreshToken = data['refresh_token'];
 
         if (token != null && data['user_id'] != null) {
           final user = User(
@@ -126,6 +137,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           );
           await localDataSource.saveUser(user);
           await localDataSource.saveToken(token.toString());
+          if (refreshToken != null) {
+            await localDataSource.saveRefreshToken(refreshToken.toString());
+          }
           return token.toString();
         } else {
           throw const AuthException(
@@ -173,17 +187,95 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> logout() async {
-    await localDataSource.deleteToken();
-    await localDataSource.deleteUser();
+    await localDataSource.clearSession();
   }
 
   @override
   Future<User> getUserFromToken(String token) async {
-    final user = await localDataSource.getUser();
-    if (user != null) {
-      return user;
-    } else {
+    // El usuario cacheado localmente proviene del login/registro y solo trae
+    // los campos básicos (id, email, username, is_verified, is_active). Los
+    // datos de perfil (full_name, phone, location, photo_url) viven en el
+    // backend, así que los traemos frescos con GET /api/v1/users/<id>.
+    final cached = await localDataSource.getUser();
+    if (cached == null) {
       throw Exception('No se encontró información de usuario local.');
+    }
+
+    if (cached.id.isEmpty) {
+      // Sin id no podemos consultar el backend; devolvemos lo que haya.
+      return cached;
+    }
+
+    try {
+      final response = await httpClient.get('/api/v1/users/${cached.id}');
+      final Map<String, dynamic> data = response.data is String
+          ? json.decode(response.data) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
+
+      final remote = User.fromJson(data);
+      // El UserDTO del backend no incluye is_verified / is_active, así que
+      // conservamos esos valores del usuario cacheado (vienen del login).
+      final merged = remote.copyWith(
+        isVerified: cached.isVerified,
+        isActive: cached.isActive,
+      );
+      // Refrescamos el cache para que la sesión mantenga los datos completos.
+      await localDataSource.saveUser(merged);
+      return merged;
+    } catch (_) {
+      // Sin conexión o error del backend: usamos el cache para no romper la
+      // sesión. Los datos de perfil pueden verse desactualizados hasta el
+      // próximo arranque con red.
+      return cached;
+    }
+  }
+
+  @override
+  Future<User> updateProfile(User user) async {
+    try {
+      // El backend usa cadena vacía para "limpiar" un campo opcional y omite
+      // (no envía) los que no cambian. Aquí enviamos los campos editables del
+      // perfil; los null se convierten en "" para permitir borrarlos.
+      final response = await httpClient.put(
+        '/api/v1/users/${user.id}',
+        data: {
+          'username': user.username,
+          'full_name': user.fullName ?? '',
+          'phone': user.phone ?? '',
+          'location': user.location ?? '',
+          'photo_url': user.photoUrl ?? '',
+        },
+      );
+
+      final Map<String, dynamic> data = response.data is String
+          ? json.decode(response.data) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
+
+      // El backend devuelve el usuario actualizado, pero no incluye
+      // is_verified / is_active en el UserDTO: conservamos los del usuario
+      // actual para no perder ese estado en la UI.
+      final updated = User.fromJson(data);
+      return updated.copyWith(
+        isVerified: user.isVerified,
+        isActive: user.isActive,
+      );
+    } on DioException catch (e) {
+      if (e.response != null) {
+        final rawData = e.response!.data;
+        final Map<String, dynamic> data = rawData is String
+            ? json.decode(rawData) as Map<String, dynamic>
+            : rawData as Map<String, dynamic>;
+        throw Exception(
+          data['error'] ??
+              data['message'] ??
+              'Error al actualizar el perfil: ${e.response!.statusCode}',
+        );
+      } else {
+        throw Exception('Error de conexión al actualizar el perfil: ${e.message}');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Error inesperado al actualizar el perfil: $e');
     }
   }
 

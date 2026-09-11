@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/repositories/auth_repository.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import 'package:Softbee/core/network/dio_client.dart'; // Importar dio_client.dart
+import 'package:Softbee/core/network/session_expired_notifier.dart';
 import 'package:Softbee/core/services/geocoding_service.dart'; // Importar GeocodingService
 import '../../core/usecase/check_auth_status_usecase.dart';
 import '../../core/usecase/get_user_from_token_usecase.dart';
@@ -85,6 +86,7 @@ final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
       ), // Inyectar RegisterUseCase
       createApiaryUseCase: ref.read(createApiaryUseCaseProvider),
       updateProfileUseCase: ref.read(updateProfileUseCaseProvider),
+      sessionExpiredNotifier: ref.read(sessionExpiredNotifierProvider),
     );
   },
 );

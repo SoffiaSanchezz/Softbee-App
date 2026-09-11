@@ -6,13 +6,18 @@ abstract class AuthLocalDataSource {
   Future<void> saveToken(String token);
   Future<String?> getToken();
   Future<void> deleteToken();
+  Future<void> saveRefreshToken(String refreshToken);
+  Future<String?> getRefreshToken();
+  Future<void> deleteRefreshToken();
   Future<void> saveUser(User user);
   Future<User?> getUser();
   Future<void> deleteUser();
+  Future<void> clearSession();
 }
 
 class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   static const String _authTokenKey = 'auth_token';
+  static const String _refreshTokenKey = 'refresh_token';
   static const String _authUserKey = 'auth_user';
 
   @override
@@ -31,6 +36,24 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_authTokenKey, token);
+  }
+
+  @override
+  Future<void> saveRefreshToken(String refreshToken) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_refreshTokenKey, refreshToken);
+  }
+
+  @override
+  Future<String?> getRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_refreshTokenKey);
+  }
+
+  @override
+  Future<void> deleteRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_refreshTokenKey);
   }
 
   @override
@@ -55,6 +78,14 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<void> deleteUser() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_authUserKey);
+  }
+
+  @override
+  Future<void> clearSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_authTokenKey);
+    await prefs.remove(_refreshTokenKey);
     await prefs.remove(_authUserKey);
   }
 }
