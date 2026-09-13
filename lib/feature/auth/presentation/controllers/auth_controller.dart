@@ -1,6 +1,7 @@
 import 'package:Softbee/feature/auth/core/usecase/create_apiary_usecase.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/network/session_expired_notifier.dart';
 import '../../../../core/usecase/usecase.dart';
 import '../../core/entities/user.dart';
 import '../../core/usecase/check_auth_status_usecase.dart';
@@ -57,6 +58,7 @@ class AuthController extends StateNotifier<AuthState> {
   final CreateApiaryUseCase
   createApiaryUseCase; // Se inyectará en RegisterController
   final UpdateProfileUseCase updateProfileUseCase;
+  final SessionExpiredNotifier sessionExpiredNotifier;
 
   AuthController({
     required this.loginUseCase,
@@ -66,7 +68,11 @@ class AuthController extends StateNotifier<AuthState> {
     required this.registerUseCase,
     required this.createApiaryUseCase,
     required this.updateProfileUseCase,
+    required this.sessionExpiredNotifier,
   }) : super(const AuthState()) {
+    // Registramos el handler que el interceptor de red invoca cuando el refresh
+    // de token falla, para forzar el cierre de sesión y redirigir al login.
+    sessionExpiredNotifier.setHandler(() async => forceLogout());
     _init(); // Call _init to check auth status on startup
   }
 
@@ -266,5 +272,12 @@ class AuthController extends StateNotifier<AuthState> {
 
   void resetRegisterStatus() {
     state = state.copyWith(isRegistered: false);
+  }
+
+  /// Fuerza el cierre de sesión sin llamar a la red. Se usa cuando el refresh
+  /// de token falla (sesión expirada). El estado queda sin usuario, lo que hace
+  /// que el router redirija automáticamente al login.
+  void forceLogout() {
+    state = const AuthState(isAuthenticating: false);
   }
 }
