@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../providers/voice_monitoring_controller.dart';
 import '../providers/voice_monitoring_state.dart';
 
@@ -18,11 +20,48 @@ class _MayaVoicePageState extends ConsumerState<MayaVoicePage> {
   @override
   void initState() {
     super.initState();
-    // Iniciamos el monitoreo inmediatamente al entrar
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Solicitar permiso de micrófono y luego iniciar el monitoreo
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _requestMicrophonePermission();
       ref.read(voiceMonitoringControllerProvider.notifier).initMonitoring(widget.apiaryId);
       ref.read(voiceMonitoringControllerProvider.notifier).syncOfflineData();
     });
+  }
+
+  Future<void> _requestMicrophonePermission() async {
+    if (kIsWeb) return; // En web el navegador maneja los permisos
+    var status = await Permission.microphone.status;
+    if (status.isDenied) {
+      status = await Permission.microphone.request();
+    }
+    if (status.isPermanentlyDenied) {
+      // Mostrar diálogo informando al usuario que debe habilitar el permiso manualmente
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Permiso de micrófono requerido'),
+            content: const Text(
+              'Maya necesita acceso al micrófono para interactuar por voz. '
+              'Por favor habilítalo en la configuración de la aplicación.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  openAppSettings();
+                },
+                child: const Text('Abrir Configuración'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   @override

@@ -95,6 +95,24 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, User>> updateUserProfile(User user) async {
+    try {
+      // 1. Persistir en el backend. Devuelve el usuario tal como quedó guardado.
+      final updated = await remoteDataSource.updateProfile(user);
+      // 2. Cachear localmente el resultado del servidor para que la sesión
+      //    refleje los cambios incluso tras reiniciar la app.
+      await localDataSource.saveUser(updated);
+      return Right(updated);
+    } catch (e) {
+      return Left(
+        ServerFailure(
+          e.toString().replaceFirst('Exception: ', ''),
+        ),
+      );
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> createApiary(
     String userId,
     String apiaryName,

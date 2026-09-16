@@ -36,7 +36,7 @@ class QuestionsController extends StateNotifier<QuestionsState> {
   }
 
   Future<void> deletePregunta(String id, String apiaryId) async {
-    final result = await _repository.deletePregunta(id);
+    final result = await _repository.deletePregunta(id, apiaryId: apiaryId);
     result.fold(
       (failure) => state = state.copyWith(error: failure.message),
       (_) => fetchPreguntas(apiaryId),

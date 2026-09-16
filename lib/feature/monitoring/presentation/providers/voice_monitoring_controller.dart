@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'voice_monitoring_state.dart';
 import '../../domain/entities/hive_answer.dart';
 import '../../domain/entities/hive_question.dart';
@@ -12,13 +13,12 @@ import '../../domain/repositories/answer_repository.dart';
 import '../../../beehive/domain/repositories/beehive_repository.dart';
 import '../../../beehive/domain/entities/beehive.dart';
 import '../../../../core/services/offline_storage_service.dart';
+import '../../../../core/services/offline_storage_provider.dart';
 import 'questions_providers.dart';
 import '../../../beehive/presentation/providers/beehive_providers.dart';
 import '../../../maya/domain/repositories/maya_repository.dart';
 import '../../../maya/presentation/providers/maya_providers.dart';
 import '../../domain/entities/question_model.dart';
-
-final offlineStorageServiceProvider = Provider((ref) => OfflineStorageService());
 
 final voiceMonitoringControllerProvider =
     StateNotifierProvider.autoDispose<VoiceMonitoringController, VoiceMonitoringState>((ref) {
@@ -125,6 +125,22 @@ class VoiceMonitoringController extends StateNotifier<VoiceMonitoringState> {
 
   Future<void> initMonitoring(String apiaryId) async {
     if (_isDisposed) return;
+
+    // Solicitar permiso de micrófono antes de iniciar el flujo de voz
+    if (!kIsWeb) {
+      var micStatus = await Permission.microphone.status;
+      if (micStatus.isDenied) {
+        micStatus = await Permission.microphone.request();
+      }
+      if (!micStatus.isGranted) {
+        state = state.copyWith(
+          step: MonitoringStep.error,
+          errorMessage: 'Se necesita permiso de micrófono para usar Maya Voz.',
+        );
+        return;
+      }
+    }
+
     state = state.copyWith(
       step: MonitoringStep.initial,
       availableHives: const [],
@@ -149,10 +165,23 @@ class VoiceMonitoringController extends StateNotifier<VoiceMonitoringState> {
           _speak("No tienes colmenas en este apiario. Crea una primero.");
           state = state.copyWith(step: MonitoringStep.finished);
         } else {
+          // Precargar en segundo plano las preguntas de todas las colmenas
+          // para que Maya pueda hacer el trazado completo si luego se pierde
+          // la señal. Best-effort: no bloquea el saludo.
+          _precacheHiveQuestions(hives);
           _startGreeting();
         }
       },
     );
+  }
+
+  /// Precarga (best-effort) las preguntas de monitoreo de cada colmena mientras
+  /// haya conexión, para que estén disponibles offline durante la revisión.
+  void _precacheHiveQuestions(List<Beehive> hives) {
+    for (final hive in hives) {
+      if (hive.id.isEmpty || hive.id.startsWith('temp_')) continue;
+      unawaited(mayaRepo.precacheHiveMonitoring(hive.id));
+    }
   }
 
   void _startGreeting() {
@@ -302,41 +331,69 @@ class VoiceMonitoringController extends StateNotifier<VoiceMonitoringState> {
             errorMessage: "Error al obtener preguntas"
           );
 
-          // MENSAJE DE VOZ SOLICITADO
-          _speak("Hubo un problema al obtener las preguntas. Por favor intenta nuevamente.");
+          // Sin conexión y sin preguntas precargadas para esta colmena: se
+          // avisa que deben cargarse con señal antes de ir al campo.
+          _speak(
+            "No pude obtener las preguntas de esta colmena. Si estás sin conexión, "
+            "abre esta colmena con internet al menos una vez para descargarlas. "
+            "¿Deseas monitorear otra colmena?",
+          );
           
           state = state.copyWith(step: MonitoringStep.askContinuation);
         }
       },
       (data) {
-        final List<dynamic> pList = data['preguntas'] ?? [];
-        final questions = pList.map((p) {
-          final String texto = (p['texto'] ?? p['question_text'] ?? p['question'] ?? '').toString().trim();
+        // Diagnóstico: ver la forma real de la respuesta para detectar
+        // desajustes de claves entre backend y cliente.
+        debugPrint("Maya Voz: claves de la respuesta -> ${data.keys.toList()}");
+
+        final pList = _extractQuestionList(data);
+        debugPrint("Maya Voz: elementos de pregunta encontrados -> ${pList.length}");
+
+        final questions = pList.map((raw) {
+          final p = Map<String, dynamic>.from(raw as Map);
+
+          final String texto = _firstNonEmpty([
+            p['texto'],
+            p['question_text'],
+            p['question'],
+            p['pregunta'],
+            p['text'],
+            p['title'],
+          ]);
           if (texto.isEmpty) return null;
 
-          final List<String>? opciones = p['opciones'] != null
-              ? List<String>.from(p['opciones'])
-                  .map((o) => o.toString().trim())
-                  .where((o) => o.isNotEmpty && o != '{}')
-                  .toList()
-              : null;
+          final opciones = _extractOptions(p);
+          final String tipo = _firstNonEmpty([
+            p['tipo'],
+            p['question_type'],
+            p['type'],
+            p['tipo_respuesta'],
+          ], fallback: 'texto');
+
+          final id = (p['id'] ??
+                  p['hive_question_id'] ??
+                  p['apiary_question_id'] ??
+                  p['question_id'] ??
+                  '')
+              .toString();
 
           return HiveQuestion(
-            id: p['id']?.toString() ?? '',
+            id: id,
             hiveId: hiveId,
-            apiaryQuestionId: '',
-            displayOrder: 0,
+            apiaryQuestionId: (p['apiary_question_id'] ?? '').toString(),
+            displayOrder: _asInt(p['display_order'] ?? p['orden'] ?? p['order']) ?? 0,
             isActive: true,
             apiaryQuestion: Pregunta(
-              id: p['id']?.toString() ?? '',
+              id: id,
               apiarioId: '',
               texto: texto,
-              tipoRespuesta: p['tipo']?.toString() ?? 'texto',
-              obligatoria: p['obligatoria'] ?? false,
+              tipoRespuesta: tipo,
+              obligatoria: (p['obligatoria'] ?? p['is_required'] ?? false) == true,
               orden: 0,
               opciones: opciones,
-              min: (p['min'] as num?)?.toInt(),
-              max: (p['max'] as num?)?.toInt(),
+              min: _asInt(p['min'] ?? p['min_value']),
+              max: _asInt(p['max'] ?? p['max_value']),
             ),
           );
         }).whereType<HiveQuestion>().toList();
@@ -400,8 +457,12 @@ class VoiceMonitoringController extends StateNotifier<VoiceMonitoringState> {
     bool valid = true;
 
     final opciones = q.opciones?.map((o) => o.trim()).where((o) => o.isNotEmpty).toList() ?? [];
+    final tipo = q.tipoRespuesta.toLowerCase();
+    final esOpciones =
+        tipo == 'opciones' || tipo == 'seleccion' || tipo == 'selección';
+    final esNumero = tipo == 'numero' || tipo == 'cantidad';
 
-    if (q.tipoRespuesta == 'opciones' && opciones.isNotEmpty) {
+    if (esOpciones && opciones.isNotEmpty) {
       final numero = _extractNumber(input);
       if (numero != null && numero > 0 && numero <= opciones.length) {
         processed = opciones[numero - 1];
@@ -416,7 +477,7 @@ class VoiceMonitoringController extends StateNotifier<VoiceMonitoringState> {
           valid = false;
         }
       }
-    } else if (q.tipoRespuesta == 'numero') {
+    } else if (esNumero) {
       final numero = _extractNumber(input);
       final minOk = q.min == null || (numero != null && numero >= q.min!);
       final maxOk = q.max == null || (numero != null && numero <= q.max!);
@@ -520,14 +581,45 @@ class VoiceMonitoringController extends StateNotifier<VoiceMonitoringState> {
         return;
       }
       if (!_isDisposed) state = state.copyWith(hasOfflineData: true);
+
+      bool allSynced = true;
       for (final data in offlineData) {
-        final hiveId = data['hive_id'];
-        final List<Map<String, dynamic>> respuestas = List<Map<String, dynamic>>.from(data['respuestas']);
-        await mayaRepo.guardarRespuestasVoz(hiveId, respuestas);
+        final hiveId = data['hive_id']?.toString();
+        // La clave guardada por _saveAllAnswers es 'answers' (con fallback a 'respuestas')
+        final rawList = data['answers'] ?? data['respuestas'];
+        if (hiveId == null || rawList == null) {
+          debugPrint("Maya Voz Sync: registro offline inválido, se omite: $data");
+          continue;
+        }
+
+        final List<Map<String, dynamic>> respuestas =
+            List<Map<String, dynamic>>.from(rawList);
+
+        final result = await mayaRepo.guardarRespuestasVoz(hiveId, respuestas);
+        result.fold(
+          (failure) {
+            allSynced = false;
+            debugPrint("Maya Voz Sync: falló el envío de respuestas: ${failure.message}");
+          },
+          (_) {
+            debugPrint("Maya Voz Sync: respuestas de colmena $hiveId enviadas.");
+          },
+        );
+
+        // Si una falla, detenemos para reintentar en la próxima oportunidad
+        if (!allSynced) break;
       }
-      await offlineStorage.clearOfflineAnswers();
-      if (!_isDisposed) state = state.copyWith(hasOfflineData: false, isOffline: false);
-    } catch (_) {
+
+      // Solo limpiamos la cola si TODO se sincronizó correctamente
+      if (allSynced) {
+        await offlineStorage.clearOfflineAnswers();
+        if (!_isDisposed) state = state.copyWith(hasOfflineData: false, isOffline: false);
+        debugPrint("Maya Voz Sync: sincronización completa, cola vaciada.");
+      } else {
+        if (!_isDisposed) state = state.copyWith(hasOfflineData: true);
+      }
+    } catch (e) {
+      debugPrint("Maya Voz Sync: error inesperado: $e");
       if (!_isDisposed) state = state.copyWith(hasOfflineData: true);
     }
   }
@@ -539,6 +631,84 @@ class VoiceMonitoringController extends StateNotifier<VoiceMonitoringState> {
     if (cleaned.length == 2) return "${cleaned[0]} o ${cleaned[1]}";
     final allButLast = cleaned.sublist(0, cleaned.length - 1).join(", ");
     return "$allButLast o ${cleaned.last}";
+  }
+
+  /// Encuentra la lista de preguntas dentro de la respuesta, tolerando las
+  /// distintas claves que puede usar el backend (o el cache).
+  List<dynamic> _extractQuestionList(Map<String, dynamic> data) {
+    const candidateKeys = [
+      'preguntas',
+      'questions',
+      'hive_questions',
+      'items',
+      'data',
+      'results',
+    ];
+
+    for (final key in candidateKeys) {
+      final value = data[key];
+      if (value is List) return value;
+      // A veces la lista viene anidada dentro de un objeto (ej. data.preguntas)
+      if (value is Map) {
+        for (final innerKey in candidateKeys) {
+          if (value[innerKey] is List) return value[innerKey] as List;
+        }
+      }
+    }
+
+    // Último recurso: si algún valor de primer nivel es una lista de objetos
+    // que parecen preguntas, la usamos.
+    for (final value in data.values) {
+      if (value is List &&
+          value.isNotEmpty &&
+          value.first is Map &&
+          (value.first as Map).keys.any((k) => k.toString().contains('question') ||
+              k.toString().contains('texto') ||
+              k.toString().contains('pregunta'))) {
+        return value;
+      }
+    }
+
+    return const [];
+  }
+
+  /// Extrae opciones de una pregunta, aceptando List o String separado por
+  /// comas, y filtrando valores vacíos o basura.
+  List<String>? _extractOptions(Map<String, dynamic> p) {
+    final raw = p['opciones'] ?? p['options'] ?? p['choices'];
+    if (raw == null) return null;
+
+    List<String> list;
+    if (raw is List) {
+      list = raw.map((o) => o.toString()).toList();
+    } else if (raw is String) {
+      list = raw.split(',');
+    } else {
+      return null;
+    }
+
+    final cleaned = list
+        .map((o) => o.trim())
+        .where((o) => o.isNotEmpty && o != '{}')
+        .toList();
+    return cleaned.isEmpty ? null : cleaned;
+  }
+
+  String _firstNonEmpty(List<dynamic> values, {String fallback = ''}) {
+    for (final v in values) {
+      if (v != null) {
+        final s = v.toString().trim();
+        if (s.isNotEmpty) return s;
+      }
+    }
+    return fallback;
+  }
+
+  int? _asInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 
   int? _extractNumber(String text) {

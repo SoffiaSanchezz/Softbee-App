@@ -1,3 +1,4 @@
+import 'package:Softbee/core/utils/date_parser.dart';
 import '../../domain/entities/treatment.dart';
 
 class TreatmentModel extends Treatment {
@@ -34,25 +35,25 @@ class TreatmentModel extends Treatment {
       hiveId: json['hive_id'],
       treatmentType: json['treatment_type'],
       productName: json['product_name'],
-      startDate: DateTime.parse(json['start_date']),
+      startDate: DateParser.parseBackendDateOr(json['start_date']),
       activeIngredient: json['active_ingredient'],
       targetDisease: json['target_disease'],
       estimatedDurationDays: json['estimated_duration_days'],
-      endDate: json['end_date'] != null ? DateTime.parse(json['end_date']) : null,
+      endDate: DateParser.parseBackendDate(json['end_date']),
       applicationMethod: json['application_method'],
       dosageApplied: json['dosage_applied'],
       dosageUnit: json['dosage_unit'],
       batchNumber: json['batch_number'],
       supplier: json['supplier'],
-      expiryDate: json['expiry_date'] != null ? DateTime.parse(json['expiry_date']) : null,
+      expiryDate: DateParser.parseBackendDate(json['expiry_date']),
       status: json['status'],
       finalResult: json['final_result'],
       finalHiveCondition: json['final_hive_condition'],
       requiresRepeat: json['requires_repeat'] ?? false,
       futureRecommendations: json['future_recommendations'],
       appliedBy: json['applied_by'],
-      registrationDate: json['registration_date'] != null ? DateTime.parse(json['registration_date']) : null,
-      updateDate: json['update_date'] != null ? DateTime.parse(json['update_date']) : null,
+      registrationDate: DateParser.parseBackendDate(json['registration_date']),
+      updateDate: DateParser.parseBackendDate(json['update_date']),
       followups: (json['followups'] as List? ?? [])
           .map((f) => FollowupModel.fromJson(f))
           .toList(),
@@ -106,14 +107,14 @@ class FollowupModel extends Followup {
     return FollowupModel(
       id: json['followup_id'] ?? json['id'],
       treatmentId: json['treatment_id'],
-      reviewDate: DateTime.parse(json['review_date']),
+      reviewDate: DateParser.parseBackendDateOr(json['review_date']),
       hiveCondition: json['hive_condition'],
       observedChanges: json['observed_changes'],
       partialResults: json['partial_results'],
       infestationLevel: json['infestation_level'],
       notes: json['notes'],
       reviewer: json['reviewer'],
-      registrationDate: json['registration_date'] != null ? DateTime.parse(json['registration_date']) : null,
+      registrationDate: DateParser.parseBackendDate(json['registration_date']),
     );
   }
 

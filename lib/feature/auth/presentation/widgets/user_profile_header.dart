@@ -1,9 +1,9 @@
-import 'package:Softbee/feature/auth/presentation/pages/user_management_page.dart';
+import 'package:Softbee/core/router/app_routes.dart';
 import 'package:Softbee/feature/auth/presentation/providers/auth_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-// import 'package:Softbee/features/user/presentation/pages/user_management_page.dart';
 
 class UserProfileHeader extends ConsumerWidget {
   const UserProfileHeader({super.key});
@@ -212,16 +212,11 @@ class UserProfileHeader extends ConsumerWidget {
           onSelected: (value) {
             switch (value) {
               case 'profile':
-                // TODO: Navegar a perfil (user_management_page.dart)
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const UserManagementPage(),
-                  ),
-                );
+                context.go(AppRoutes.userProfileRoute);
                 break;
               case 'settings':
-                // TODO: Navegar a configuracion
+                // La configuración vive dentro de la vista de perfil.
+                context.go(AppRoutes.userProfileRoute);
                 break;
               case 'logout':
                 ref.read(authControllerProvider.notifier).logout();

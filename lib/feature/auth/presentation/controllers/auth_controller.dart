@@ -1,6 +1,7 @@
 import 'package:Softbee/feature/auth/core/usecase/create_apiary_usecase.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/network/session_expired_notifier.dart';
 import '../../../../core/usecase/usecase.dart';
 import '../../core/entities/user.dart';
 import '../../core/usecase/check_auth_status_usecase.dart';
@@ -8,6 +9,7 @@ import '../../core/usecase/get_user_from_token_usecase.dart';
 import '../../core/usecase/login_usecase.dart';
 import '../../core/usecase/logout_usecase.dart';
 import '../../core/usecase/register_usecase.dart';
+import '../../core/usecase/update_profile_usecase.dart';
 
 class AuthState {
   final bool isLoading;
@@ -55,6 +57,8 @@ class AuthController extends StateNotifier<AuthState> {
   final RegisterUseCase registerUseCase; // Add RegisterUseCase
   final CreateApiaryUseCase
   createApiaryUseCase; // Se inyectará en RegisterController
+  final UpdateProfileUseCase updateProfileUseCase;
+  final SessionExpiredNotifier sessionExpiredNotifier;
 
   AuthController({
     required this.loginUseCase,
@@ -63,7 +67,12 @@ class AuthController extends StateNotifier<AuthState> {
     required this.getUserFromTokenUseCase,
     required this.registerUseCase,
     required this.createApiaryUseCase,
+    required this.updateProfileUseCase,
+    required this.sessionExpiredNotifier,
   }) : super(const AuthState()) {
+    // Registramos el handler que el interceptor de red invoca cuando el refresh
+    // de token falla, para forzar el cierre de sesión y redirigir al login.
+    sessionExpiredNotifier.setHandler(() async => forceLogout());
     _init(); // Call _init to check auth status on startup
   }
 
@@ -195,6 +204,55 @@ class AuthController extends StateNotifier<AuthState> {
     );
   }
 
+  /// Actualiza el perfil del usuario actual.
+  ///
+  /// Devuelve `null` si la actualización fue exitosa, o un mensaje de error en
+  /// caso contrario. Al tener éxito, `state.user` se actualiza para que la UI
+  /// refleje los cambios de inmediato.
+  ///
+  /// Los campos de texto vacíos se interpretan como "sin dato" (se limpian).
+  Future<String?> updateProfile({
+    required String username,
+    String? fullName,
+    String? phone,
+    String? location,
+    String? photoUrl,
+    bool removePhoto = false,
+  }) async {
+    final current = state.user;
+    if (current == null) {
+      return 'No hay una sesión activa.';
+    }
+
+    String? clean(String? value) {
+      if (value == null) return null;
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? null : trimmed;
+    }
+
+    final updatedUser = current.copyWith(
+      username: username.trim().isEmpty ? current.username : username.trim(),
+      fullName: clean(fullName),
+      clearFullName: clean(fullName) == null,
+      phone: clean(phone),
+      clearPhone: clean(phone) == null,
+      location: clean(location),
+      clearLocation: clean(location) == null,
+      photoUrl: removePhoto ? null : (photoUrl ?? current.photoUrl),
+      clearPhotoUrl: removePhoto,
+    );
+
+    final result = await updateProfileUseCase(updatedUser);
+
+    return result.fold(
+      (failure) => _mapFailureToMessage(failure),
+      (user) {
+        state = state.copyWith(user: user, error: null);
+        return null;
+      },
+    );
+  }
+
   String _mapFailureToMessage(Failure failure) {
     switch (failure.runtimeType) {
       case ServerFailure:
@@ -214,5 +272,12 @@ class AuthController extends StateNotifier<AuthState> {
 
   void resetRegisterStatus() {
     state = state.copyWith(isRegistered: false);
+  }
+
+  /// Fuerza el cierre de sesión sin llamar a la red. Se usa cuando el refresh
+  /// de token falla (sesión expirada). El estado queda sin usuario, lo que hace
+  /// que el router redirija automáticamente al login.
+  void forceLogout() {
+    state = const AuthState(isAuthenticating: false);
   }
 }

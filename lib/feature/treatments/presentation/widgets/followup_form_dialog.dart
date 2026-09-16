@@ -3,17 +3,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../domain/entities/treatment.dart';
 import '../providers/treatment_providers.dart';
 
+/// Formulario para crear o editar un seguimiento de tratamiento.
+///
+/// Si [followup] es `null` crea un nuevo seguimiento; en caso contrario
+/// precarga los datos y actualiza el seguimiento existente.
 class FollowupFormDialog extends ConsumerStatefulWidget {
   final String treatmentId;
   final String productName;
+  final Followup? followup;
 
   const FollowupFormDialog({
     super.key,
     required this.treatmentId,
     required this.productName,
+    this.followup,
   });
+
+  bool get isEditing => followup != null;
 
   @override
   ConsumerState<FollowupFormDialog> createState() => _FollowupFormDialogState();
@@ -21,15 +30,28 @@ class FollowupFormDialog extends ConsumerStatefulWidget {
 
 class _FollowupFormDialogState extends ConsumerState<FollowupFormDialog> {
   final _formKey = GlobalKey<FormState>();
-  
-  final _hiveConditionController = TextEditingController();
-  final _observedChangesController = TextEditingController();
-  final _partialResultsController = TextEditingController();
-  final _infestationLevelController = TextEditingController();
-  final _notesController = TextEditingController();
-  final _reviewerController = TextEditingController();
-  
-  DateTime _reviewDate = DateTime.now();
+
+  late final TextEditingController _hiveConditionController;
+  late final TextEditingController _observedChangesController;
+  late final TextEditingController _partialResultsController;
+  late final TextEditingController _infestationLevelController;
+  late final TextEditingController _notesController;
+  late final TextEditingController _reviewerController;
+
+  late DateTime _reviewDate;
+
+  @override
+  void initState() {
+    super.initState();
+    final f = widget.followup;
+    _hiveConditionController = TextEditingController(text: f?.hiveCondition ?? '');
+    _observedChangesController = TextEditingController(text: f?.observedChanges ?? '');
+    _partialResultsController = TextEditingController(text: f?.partialResults ?? '');
+    _infestationLevelController = TextEditingController(text: f?.infestationLevel ?? '');
+    _notesController = TextEditingController(text: f?.notes ?? '');
+    _reviewerController = TextEditingController(text: f?.reviewer ?? '');
+    _reviewDate = f?.reviewDate ?? DateTime.now();
+  }
 
   @override
   void dispose() {
@@ -52,9 +74,9 @@ class _FollowupFormDialogState extends ConsumerState<FollowupFormDialog> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: Colors.amber.shade700,
+              primary: Colors.green.shade700,
               onPrimary: Colors.white,
-              onSurface: Colors.amber.shade900,
+              onSurface: Colors.green.shade900,
             ),
           ),
           child: child!,
@@ -62,32 +84,46 @@ class _FollowupFormDialogState extends ConsumerState<FollowupFormDialog> {
       },
     );
     if (picked != null && picked != _reviewDate) {
-      setState(() {
-        _reviewDate = picked;
-      });
+      setState(() => _reviewDate = picked);
     }
   }
+
+  String? _text(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final data = {
-      'treatment_id': widget.treatmentId,
-      'review_date': DateFormat('yyyy-MM-dd').format(_reviewDate),
-      'hive_condition': _hiveConditionController.text.isEmpty ? null : _hiveConditionController.text,
-      'observed_changes': _observedChangesController.text.isEmpty ? null : _observedChangesController.text,
-      'partial_results': _partialResultsController.text.isEmpty ? null : _partialResultsController.text,
-      'infestation_level': _infestationLevelController.text.isEmpty ? null : _infestationLevelController.text,
-      'notes': _notesController.text.isEmpty ? null : _notesController.text,
-      'reviewer': _reviewerController.text.isEmpty ? null : _reviewerController.text,
-    };
+    final controller = ref.read(treatmentsControllerProvider.notifier);
 
-    await ref.read(treatmentsControllerProvider.notifier).addFollowup(data);
-    
+    if (widget.isEditing) {
+      final data = {
+        'review_date': DateFormat('yyyy-MM-dd').format(_reviewDate),
+        'hive_condition': _text(_hiveConditionController),
+        'observed_changes': _text(_observedChangesController),
+        'partial_results': _text(_partialResultsController),
+        'infestation_level': _text(_infestationLevelController),
+        'notes': _text(_notesController),
+        'reviewer': _text(_reviewerController),
+      };
+      await controller.updateFollowup(widget.followup!.id, data);
+    } else {
+      final data = {
+        'treatment_id': widget.treatmentId,
+        'review_date': DateFormat('yyyy-MM-dd').format(_reviewDate),
+        'hive_condition': _text(_hiveConditionController),
+        'observed_changes': _text(_observedChangesController),
+        'partial_results': _text(_partialResultsController),
+        'infestation_level': _text(_infestationLevelController),
+        'notes': _text(_notesController),
+        'reviewer': _text(_reviewerController),
+      };
+      await controller.addFollowup(data);
+    }
+
     if (mounted) {
       final state = ref.read(treatmentsControllerProvider);
       if (state.errorMessage == null) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
       }
     }
   }
@@ -95,6 +131,11 @@ class _FollowupFormDialogState extends ConsumerState<FollowupFormDialog> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(treatmentsControllerProvider);
+    final bool isEditing = widget.isEditing;
+
+    final Size screenSize = MediaQuery.of(context).size;
+    final bool isMobile = screenSize.width < 600;
+    final double dialogWidth = isMobile ? screenSize.width - 32 : 500;
 
     return AlertDialog(
       backgroundColor: Colors.white,
@@ -109,10 +150,11 @@ class _FollowupFormDialogState extends ConsumerState<FollowupFormDialog> {
         ),
         child: Column(
           children: [
-            Icon(Icons.fact_check_rounded, color: Colors.green.shade700, size: 40),
+            Icon(isEditing ? Icons.edit_note_rounded : Icons.fact_check_rounded,
+                color: Colors.green.shade700, size: 40),
             const SizedBox(height: 8),
             Text(
-              'Nuevo Seguimiento',
+              isEditing ? 'Editar Seguimiento' : 'Nuevo Seguimiento',
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
@@ -121,36 +163,34 @@ class _FollowupFormDialogState extends ConsumerState<FollowupFormDialog> {
             ),
             Text(
               widget.productName,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.green.shade800,
-              ),
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.green.shade800),
               textAlign: TextAlign.center,
             ),
           ],
         ),
       ),
       content: SizedBox(
-        width: 500,
+        width: dialogWidth,
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDatePickerTile(
-                  'Fecha de Revisión',
-                  _reviewDate,
-                  () => _selectDate(context),
-                ),
+                _buildDatePickerTile('Fecha de Revisión', _reviewDate, () => _selectDate(context)),
                 const SizedBox(height: 12),
-                _buildTextField(_hiveConditionController, 'Condición de la Colmena', 'Ej: Activa, Débil', Icons.health_and_safety_rounded),
-                _buildTextField(_observedChangesController, 'Cambios Observados', 'Ej: Menos varroa', Icons.analytics_rounded),
-                _buildTextField(_partialResultsController, 'Resultados Parciales', '', Icons.rule_rounded),
-                _buildTextField(_infestationLevelController, 'Nivel de Infestación', 'Ej: 2%', Icons.bug_report_rounded),
-                _buildTextField(_notesController, 'Notas adicionales', '', Icons.notes_rounded, maxLines: 3),
-                _buildTextField(_reviewerController, 'Revisado por', '', Icons.person_search_rounded),
-                
+                _buildTextField(_hiveConditionController, 'Condición de la Colmena',
+                    'Ej: Activa, Débil', Icons.health_and_safety_rounded),
+                _buildTextField(_observedChangesController, 'Cambios Observados',
+                    'Ej: Menos varroa', Icons.analytics_rounded),
+                _buildTextField(
+                    _partialResultsController, 'Resultados Parciales', '', Icons.rule_rounded),
+                _buildTextField(_infestationLevelController, 'Nivel de Infestación', 'Ej: 2%',
+                    Icons.bug_report_rounded),
+                _buildTextField(_notesController, 'Notas adicionales', '', Icons.notes_rounded,
+                    maxLines: 3),
+                _buildTextField(
+                    _reviewerController, 'Revisado por', '', Icons.person_search_rounded),
                 if (state.errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
@@ -178,9 +218,13 @@ class _FollowupFormDialogState extends ConsumerState<FollowupFormDialog> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
-          child: state.isCreating 
-            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-            : Text('Guardar Seguimiento', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          child: state.isCreating
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : Text(isEditing ? 'Guardar Cambios' : 'Guardar Seguimiento',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
         ),
       ],
     ).animate().scale(duration: 300.ms, curve: Curves.easeOutBack).fadeIn();
@@ -199,7 +243,8 @@ class _FollowupFormDialogState extends ConsumerState<FollowupFormDialog> {
         title: Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600)),
         subtitle: Text(
           DateFormat('dd/MM/yyyy').format(date),
-          style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+          style: GoogleFonts.poppins(
+              fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
         ),
         trailing: Icon(Icons.calendar_month_rounded, color: Colors.green.shade700),
         onTap: onTap,
@@ -207,7 +252,9 @@ class _FollowupFormDialogState extends ConsumerState<FollowupFormDialog> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, String hint, IconData icon, {int maxLines = 1}) {
+  Widget _buildTextField(
+      TextEditingController controller, String label, String hint, IconData icon,
+      {int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextFormField(

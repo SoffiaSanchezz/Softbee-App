@@ -1,15 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
+import '../../feature/auth/data/datasources/auth_local_datasource.dart';
+import 'auth_interceptor.dart';
+import 'session_expired_notifier.dart';
 
 final dioClientProvider = Provider<Dio>((ref) {
-  // Para emulador de Android, usa 10.0.2.2 para referirte al localhost de la máquina host.
-  // Para iOS y web, 'localhost' funciona bien.
-  final baseUrl = kIsWeb
-      ? 'http://127.0.0.1:5000'
-      : (defaultTargetPlatform == TargetPlatform.android
-            ? 'http://10.0.2.2:5000'
-            : 'http://127.0.0.1:5000');
+  final baseUrl = AppConfig.backUrl;
 
   final BaseOptions options = BaseOptions(
     baseUrl: baseUrl,
@@ -17,5 +14,21 @@ final dioClientProvider = Provider<Dio>((ref) {
     receiveTimeout: const Duration(seconds: 10),
     headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
   );
-  return Dio(options);
+
+  final dio = Dio(options);
+
+  // Instanciamos el local datasource directamente (no tiene dependencias) para
+  // evitar importar auth_providers.dart y provocar una dependencia circular.
+  final AuthLocalDataSource localDataSource = AuthLocalDataSourceImpl();
+  final sessionExpiredNotifier = ref.read(sessionExpiredNotifierProvider);
+
+  dio.interceptors.add(
+    AuthInterceptor(
+      localDataSource: localDataSource,
+      baseUrl: baseUrl,
+      onSessionExpired: sessionExpiredNotifier.notifyExpired,
+    ),
+  );
+
+  return dio;
 });

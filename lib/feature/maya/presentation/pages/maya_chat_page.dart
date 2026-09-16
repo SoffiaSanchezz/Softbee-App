@@ -33,6 +33,40 @@ class _MayaChatPageState extends ConsumerState<MayaChatPage> {
     super.initState();
     _speech = stt.SpeechToText();
     _initTts();
+    _requestMicrophonePermission();
+  }
+
+  Future<void> _requestMicrophonePermission() async {
+    if (kIsWeb) return;
+    var status = await Permission.microphone.status;
+    if (status.isDenied) {
+      status = await Permission.microphone.request();
+    }
+    if (status.isPermanentlyDenied && mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Permiso de micrófono requerido'),
+          content: const Text(
+            'Maya necesita acceso al micrófono para interactuar por voz. '
+            'Por favor habilítalo en la configuración de la aplicación.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                openAppSettings();
+              },
+              child: const Text('Abrir Configuración'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   void _initTts() {

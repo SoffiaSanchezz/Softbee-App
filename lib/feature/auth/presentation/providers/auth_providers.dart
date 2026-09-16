@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/repositories/auth_repository.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import 'package:Softbee/core/network/dio_client.dart'; // Importar dio_client.dart
+import 'package:Softbee/core/network/session_expired_notifier.dart';
 import 'package:Softbee/core/services/geocoding_service.dart'; // Importar GeocodingService
 import '../../core/usecase/check_auth_status_usecase.dart';
 import '../../core/usecase/get_user_from_token_usecase.dart';
@@ -11,6 +12,7 @@ import '../../core/usecase/login_usecase.dart';
 import '../../core/usecase/logout_usecase.dart';
 import '../../core/usecase/register_usecase.dart'; // Importar RegisterUseCase
 import '../../core/usecase/create_apiary_usecase.dart'; // Importar CreateApiaryUseCase
+import '../../core/usecase/update_profile_usecase.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/forgot_password_controller.dart';
 import '../controllers/reset_password_controller.dart';
@@ -64,6 +66,10 @@ final createApiaryUseCaseProvider = Provider<CreateApiaryUseCase>((ref) {
   return CreateApiaryUseCase(ref.read(authRepositoryProvider));
 });
 
+final updateProfileUseCaseProvider = Provider<UpdateProfileUseCase>((ref) {
+  return UpdateProfileUseCase(ref.read(authRepositoryProvider));
+});
+
 final geocodingServiceProvider = Provider<GeocodingService>((ref) {
   return GeocodingService();
 });
@@ -79,6 +85,8 @@ final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
         registerUseCaseProvider,
       ), // Inyectar RegisterUseCase
       createApiaryUseCase: ref.read(createApiaryUseCaseProvider),
+      updateProfileUseCase: ref.read(updateProfileUseCaseProvider),
+      sessionExpiredNotifier: ref.read(sessionExpiredNotifierProvider),
     );
   },
 );

@@ -84,7 +84,7 @@ class InventoryController extends StateNotifier<InventoryState> {
     required String apiaryId,
   }) async {
     // Changed to String
-    final result = await _repository.deleteInventoryItem(itemId);
+    final result = await _repository.deleteInventoryItem(itemId, apiaryId: apiaryId);
     return result.fold((failure) => _mapFailureToMessage(failure), (_) {
       loadInventoryItems(apiaryId: apiaryId); // Reload inventory after deletion
       return null;
